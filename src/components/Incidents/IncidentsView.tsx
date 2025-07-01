@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download, LayoutGrid, List } from 'lucide-react';
+import { Search, Filter, Download, LayoutGrid, List, Plus } from 'lucide-react';
 import KanbanBoard from './KanbanBoard';
 import IncidentList from './IncidentList';
 import IncidentFilters from './IncidentFilters';
+import CreateIncidentModal from './CreateIncidentModal';
 import { useApp } from '../../context/AppContext';
 
 export default function IncidentsView() {
@@ -16,6 +17,7 @@ export default function IncidentsView() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filteredIncidents = incidents.filter(incident => {
     const matchesSearch = incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,6 +70,14 @@ export default function IncidentsView() {
             </button>
           </div>
           
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Incidente
+          </button>
+          
           <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             <Download className="w-4 h-4 mr-2" />
             Exportar
@@ -114,6 +124,11 @@ export default function IncidentsView() {
         <KanbanBoard incidents={filteredIncidents} />
       ) : (
         <IncidentList incidents={filteredIncidents} />
+      )}
+
+      {/* Create Incident Modal */}
+      {showCreateModal && (
+        <CreateIncidentModal onClose={() => setShowCreateModal(false)} />
       )}
     </div>
   );

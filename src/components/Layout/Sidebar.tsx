@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   LayoutDashboard, 
   AlertTriangle, 
-  Plus, 
   Users, 
   Settings,
   Activity
@@ -16,7 +15,6 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
-  { id: 'create', label: 'Nuevo Incidente', icon: Plus },
   { id: 'users', label: 'Usuarios', icon: Users },
   { id: 'audit', label: 'Auditoría', icon: Activity },
   { id: 'settings', label: 'Configuración', icon: Settings }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Clock, User, Calendar, AlertTriangle } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { Clock, User, Calendar, AlertTriangle, Eye, Plus } from 'lucide-react';
 import { Incident, Status } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { 
@@ -9,6 +9,8 @@ import {
   getIncidentTypeLabel, 
   getSeverityLabel 
 } from '../../utils/helpers';
+import IncidentDetailsModal from './IncidentDetailsModal';
+import CreateIncidentModal from './CreateIncidentModal';
 
 interface KanbanBoardProps {
   incidents: Incident[];
@@ -43,7 +45,8 @@ const statusConfig = {
 
 export default function KanbanBoard({ incidents }: KanbanBoardProps) {
   const { users, updateIncident } = useApp();
-  const [draggedIncident, setDraggedIncident] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
@@ -54,13 +57,7 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
     return incidents.filter(incident => incident.status === status);
   };
 
-  const handleDragStart = (start: any) => {
-    setDraggedIncident(start.draggableId);
-  };
-
   const handleDragEnd = (result: DropResult) => {
-    setDraggedIncident(null);
-    
     if (!result.destination) {
       return;
     }
@@ -78,9 +75,9 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm hover:shadow-md transition-all duration-200 ${
-            snapshot.isDragging ? 'rotate-2 shadow-lg' : ''
-          } ${draggedIncident === incident.id ? 'opacity-50' : ''}`}
+          className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${
+            snapshot.isDragging ? 'rotate-2 shadow-lg scale-105' : ''
+          }`}
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-2">
@@ -115,7 +112,7 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
             <div className="flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center">
                 <User className="w-3 h-3 mr-1" />
-                <span>{getUserName(incident.assignedTo)}</span>
+                <span className="truncate">{getUserName(incident.assignedTo)}</span>
               </div>
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 mr-1" />
@@ -136,6 +133,19 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
               )}
             </div>
           )}
+          
+          <div className="mt-3 pt-2 border-t border-gray-100">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedIncident(incident);
+              }}
+              className="w-full flex items-center justify-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+            >
+              <Eye className="w-3 h-3 mr-1" />
+              Ver Detalles
+            </button>
+          </div>
         </div>
       )}
     </Draggable>
@@ -154,9 +164,20 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
         <div className={`${headerColor} text-white px-4 py-3 rounded-t-lg`}>
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">{title}</h3>
-            <span className="bg-white bg-opacity-20 px-2 py-1 rounded-full text-sm font-medium">
-              {columnIncidents.length}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="bg-white bg-opacity-20 px-2 py-1 rounded-full text-sm font-medium">
+                {columnIncidents.length}
+              </span>
+              {status === 'open' && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 p-1 rounded transition-colors"
+                  title="Nuevo Incidente"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -166,7 +187,7 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
               ref={provided.innerRef}
               {...provided.droppableProps}
               className={`flex-1 p-4 transition-colors ${
-                snapshot.isDraggingOver ? 'bg-blue-50' : ''
+                snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50' : ''
               }`}
             >
               {columnIncidents.map((incident, index) => (
@@ -178,6 +199,14 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
                 <div className="text-center py-8 text-gray-400">
                   <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No hay incidentes</p>
+                  {status === 'open' && (
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="mt-2 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                    >
+                      Crear el primero
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -188,33 +217,50 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
   };
 
   return (
-    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <KanbanColumn 
-          status="open" 
-          title={statusConfig.open.title}
-          color={statusConfig.open.color}
-          headerColor={statusConfig.open.headerColor}
+    <>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <KanbanColumn 
+            status="open" 
+            title={statusConfig.open.title}
+            color={statusConfig.open.color}
+            headerColor={statusConfig.open.headerColor}
+          />
+          <KanbanColumn 
+            status="in_progress" 
+            title={statusConfig.in_progress.title}
+            color={statusConfig.in_progress.color}
+            headerColor={statusConfig.in_progress.headerColor}
+          />
+          <KanbanColumn 
+            status="resolved" 
+            title={statusConfig.resolved.title}
+            color={statusConfig.resolved.color}
+            headerColor={statusConfig.resolved.headerColor}
+          />
+          <KanbanColumn 
+            status="closed" 
+            title={statusConfig.closed.title}
+            color={statusConfig.closed.color}
+            headerColor={statusConfig.closed.headerColor}
+          />
+        </div>
+      </DragDropContext>
+
+      {/* Incident Details Modal */}
+      {selectedIncident && (
+        <IncidentDetailsModal
+          incident={selectedIncident}
+          onClose={() => setSelectedIncident(null)}
         />
-        <KanbanColumn 
-          status="in_progress" 
-          title={statusConfig.in_progress.title}
-          color={statusConfig.in_progress.color}
-          headerColor={statusConfig.in_progress.headerColor}
+      )}
+
+      {/* Create Incident Modal */}
+      {showCreateModal && (
+        <CreateIncidentModal
+          onClose={() => setShowCreateModal(false)}
         />
-        <KanbanColumn 
-          status="resolved" 
-          title={statusConfig.resolved.title}
-          color={statusConfig.resolved.color}
-          headerColor={statusConfig.resolved.headerColor}
-        />
-        <KanbanColumn 
-          status="closed" 
-          title={statusConfig.closed.title}
-          color={statusConfig.closed.color}
-          headerColor={statusConfig.closed.headerColor}
-        />
-      </div>
-    </DragDropContext>
+      )}
+    </>
   );
 }

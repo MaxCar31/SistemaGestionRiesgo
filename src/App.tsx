@@ -6,7 +6,6 @@ import Header from './components/Layout/Header';
 import Sidebar from './components/Layout/Sidebar';
 import DashboardView from './components/Dashboard/DashboardView';
 import IncidentsView from './components/Incidents/IncidentsView';
-import CreateIncidentView from './components/Incidents/CreateIncidentView';
 import UsersView from './components/Users/UsersView';
 import AuditView from './components/Audit/AuditView';
 
@@ -31,8 +30,6 @@ function AppContent() {
         return <DashboardView />;
       case 'incidents':
         return <IncidentsView />;
-      case 'create':
-        return <CreateIncidentView />;
       case 'users':
         return <UsersView />;
       case 'audit':
