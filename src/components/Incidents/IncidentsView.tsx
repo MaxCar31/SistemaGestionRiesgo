@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Filter, Download, LayoutGrid, List } from 'lucide-react';
+import KanbanBoard from './KanbanBoard';
 import IncidentList from './IncidentList';
 import IncidentFilters from './IncidentFilters';
 import { useApp } from '../../context/AppContext';
-import { Severity, Status, IncidentType } from '../../types';
 
 export default function IncidentsView() {
   const { incidents } = useApp();
@@ -15,6 +15,7 @@ export default function IncidentsView() {
     assignedTo: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
   const filteredIncidents = incidents.filter(incident => {
     const matchesSearch = incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,6 +43,31 @@ export default function IncidentsView() {
         </div>
         
         <div className="flex space-x-3">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'kanban' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4 mr-2" />
+              Kanban
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'list' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="w-4 h-4 mr-2" />
+              Lista
+            </button>
+          </div>
+          
           <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             <Download className="w-4 h-4 mr-2" />
             Exportar
@@ -83,8 +109,12 @@ export default function IncidentsView() {
         )}
       </div>
 
-      {/* Incidents List */}
-      <IncidentList incidents={filteredIncidents} />
+      {/* Content */}
+      {viewMode === 'kanban' ? (
+        <KanbanBoard incidents={filteredIncidents} />
+      ) : (
+        <IncidentList incidents={filteredIncidents} />
+      )}
     </div>
   );
 }

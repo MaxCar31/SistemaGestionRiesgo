@@ -37,13 +37,6 @@ function AppContent() {
         return <UsersView />;
       case 'audit':
         return <AuditView />;
-      case 'reports':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Módulo de Reportes</h2>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
-        );
       case 'settings':
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">

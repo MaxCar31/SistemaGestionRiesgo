@@ -4,7 +4,6 @@ import {
   AlertTriangle, 
   Plus, 
   Users, 
-  FileText, 
   Settings,
   Activity
 } from 'lucide-react';
@@ -20,7 +19,6 @@ const menuItems = [
   { id: 'create', label: 'Nuevo Incidente', icon: Plus },
   { id: 'users', label: 'Usuarios', icon: Users },
   { id: 'audit', label: 'Auditoría', icon: Activity },
-  { id: 'reports', label: 'Reportes', icon: FileText },
   { id: 'settings', label: 'Configuración', icon: Settings }
 ];
 
