@@ -21,7 +21,7 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
     tags: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const newIncident: Incident = {
@@ -40,8 +40,13 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
       impact: formData.impact
     };
 
-    addIncident(newIncident);
-    onClose();
+    try {
+      await addIncident(newIncident);
+      onClose();
+    } catch (error) {
+      console.error('Error al crear el incidente:', error);
+      // El error ya se maneja en addIncident, pero podríamos agregar más UI feedback aquí
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

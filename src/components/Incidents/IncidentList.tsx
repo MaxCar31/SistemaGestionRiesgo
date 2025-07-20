@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Calendar, Tag } from 'lucide-react';
-import { Incident } from '../../types';
+import { Incident, Status } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { 
   getSeverityColor, 
@@ -18,8 +18,12 @@ interface IncidentListProps {
 export default function IncidentList({ incidents }: IncidentListProps) {
   const { users, updateIncident } = useApp();
 
-  const handleStatusChange = (incidentId: string, newStatus: string) => {
-    updateIncident(incidentId, { status: newStatus as any });
+  const handleStatusChange = async (incidentId: string, newStatus: string) => {
+    try {
+      await updateIncident(incidentId, { status: newStatus as Status });
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+    }
   };
 
   const getUserName = (userId: string) => {
