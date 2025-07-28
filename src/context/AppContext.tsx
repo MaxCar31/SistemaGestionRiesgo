@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Incident, AuditLog, IncidentType, Severity, Status } from '../types';
+import { User, Incident, AuditLog, IncidentType, Severity, Status, Role } from '../types';
 import { mockUsers, mockIncidents, mockAuditLogs } from '../data/mockData';
 import { supabase } from '../lib/supabase';
+import { useRoles, RolePermissions } from '../hooks/useRoles';
 
 // Funciones de mapeo entre estados de DB y estados internos
 const mapStatusToEstado = (status: Status): string => {
@@ -49,16 +50,106 @@ interface AppContextType {
   updateIncident: (id: string, updates: Partial<Incident>) => Promise<void>;
   addAuditLog: (log: AuditLog) => void;
   loading: boolean;
+  // Funciones relacionadas con roles
+  loadUsersFromSupabase: () => Promise<void>;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(mockAuditLogs);
   const [loading, setLoading] = useState(true);
+
+  // Definir permisos por rol
+  const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+    admin: {
+      canCreateIncidents: true,
+      canEditIncidents: true,
+      canDeleteIncidents: true,
+      canAssignIncidents: true,
+      canViewAuditLogs: true,
+      canManageUsers: true,
+      canManageRoles: true,
+      canViewReports: true,
+      canExportData: true,
+    },
+    analyst: {
+      canCreateIncidents: true,
+      canEditIncidents: true,
+      canDeleteIncidents: false,
+      canAssignIncidents: true,
+      canViewAuditLogs: true,
+      canManageUsers: false,
+      canManageRoles: false,
+      canViewReports: true,
+      canExportData: true,
+    },
+    viewer: {
+      canCreateIncidents: false,
+      canEditIncidents: false,
+      canDeleteIncidents: false,
+      canAssignIncidents: false,
+      canViewAuditLogs: false,
+      canManageUsers: false,
+      canManageRoles: false,
+      canViewReports: true,
+      canExportData: false,
+    },
+  };
+
+  // Función para verificar permisos
+  const hasPermission = (permission: string): boolean => {
+    if (!currentUser) return false;
+    const rolePermissions = ROLE_PERMISSIONS[currentUser.role];
+    return rolePermissions?.[permission] || false;
+  };
+
+  // Función para cargar usuarios desde Supabase
+  const loadUsersFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios_con_roles')
+        .select('*');
+
+      if (error) {
+        console.error('Error al cargar usuarios con roles:', error);
+        return;
+      }
+
+      const mappedUsers: User[] = data?.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        department: user.department || 'Sin departamento',
+        role: mapSupabaseRoleToLocal(user.role_id),
+        is_active: user.is_active,
+        auth_created_at: user.auth_created_at ? new Date(user.auth_created_at) : undefined,
+        created_at: user.created_at ? new Date(user.created_at) : undefined,
+        updated_at: user.updated_at ? new Date(user.updated_at) : undefined,
+      })) || [];
+
+      setUsers(mappedUsers);
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+    }
+  };
+
+  // Mapear role_id de Supabase a nuestros roles locales
+  const mapSupabaseRoleToLocal = (roleId: string): 'admin' | 'analyst' | 'viewer' => {
+    // Mapeo basado en los UUIDs de la imagen de Supabase
+    switch (roleId) {
+      case 'd41a7da5-5241-4f4e-9dc4-f9dd64...': // ID del rol admin
+        return 'admin';
+      case 'otro-uuid-analyst':
+        return 'analyst';
+      default:
+        return 'viewer';
+    }
+  };
 
   // Función para cargar incidentes desde Supabase
   const loadIncidentsFromSupabase = async () => {
@@ -255,7 +346,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addIncident,
       updateIncident,
       addAuditLog,
-      loading
+      loading,
+      loadUsersFromSupabase,
+      hasPermission
     }}>
       {children}
     </AppContext.Provider>

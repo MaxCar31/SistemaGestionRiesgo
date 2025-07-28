@@ -8,6 +8,8 @@ import DashboardView from './components/Dashboard/DashboardView';
 import IncidentsView from './components/Incidents/IncidentsView';
 import UsersView from './components/Users/UsersView';
 import AuditView from './components/Audit/AuditView';
+import RoleManagementView from './components/Users/RoleManagementView';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function AppContent() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -31,15 +33,31 @@ function AppContent() {
       case 'incidents':
         return <IncidentsView />;
       case 'users':
-        return <UsersView />;
+        return (
+          <ProtectedRoute requiredPermission="canManageUsers">
+            <UsersView />
+          </ProtectedRoute>
+        );
+      case 'roles':
+        return (
+          <ProtectedRoute requiredPermission="canManageRoles">
+            <RoleManagementView />
+          </ProtectedRoute>
+        );
       case 'audit':
-        return <AuditView />;
+        return (
+          <ProtectedRoute requiredPermission="canViewAuditLogs">
+            <AuditView />
+          </ProtectedRoute>
+        );
       case 'settings':
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Configuración del Sistema</h2>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
+          <ProtectedRoute requiredRole="admin">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Configuración del Sistema</h2>
+              <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
+            </div>
+          </ProtectedRoute>
         );
       default:
         return <DashboardView />;

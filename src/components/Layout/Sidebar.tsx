@@ -1,26 +1,54 @@
-import React from 'react';
 import { 
   LayoutDashboard, 
   AlertTriangle, 
   Users, 
   Settings,
-  Activity
+  Activity,
+  Shield,
+  LucideIcon
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
 }
 
-const menuItems = [
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  requiredPermission?: string;
+  adminOnly?: boolean;
+}
+
+const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
-  { id: 'users', label: 'Usuarios', icon: Users },
-  { id: 'audit', label: 'Auditoría', icon: Activity },
-  { id: 'settings', label: 'Configuración', icon: Settings }
+  { id: 'users', label: 'Usuarios', icon: Users, requiredPermission: 'canManageUsers' },
+  { id: 'roles', label: 'Gestión de Roles', icon: Shield, requiredPermission: 'canManageRoles' },
+  { id: 'audit', label: 'Auditoría', icon: Activity, requiredPermission: 'canViewAuditLogs' },
+  { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true }
 ];
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
+  const { currentUser, hasPermission } = useApp();
+
+  // Filtrar elementos del menú basado en permisos
+  const visibleMenuItems = menuItems.filter(item => {
+    if (!currentUser) return false;
+    
+    if (item.adminOnly && currentUser.role !== 'admin') {
+      return false;
+    }
+    
+    if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
+      return false;
+    }
+    
+    return true;
+  });
+
   return (
     <aside className="w-64 bg-gray-900 text-white h-full">
       <nav className="mt-8">
@@ -31,7 +59,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         </div>
         
         <ul className="space-y-2 px-3">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             

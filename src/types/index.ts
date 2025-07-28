@@ -1,9 +1,28 @@
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
+export interface UserRole {
+  user_id: string;
+  role_id: string;
+  assigned_at: Date;
+  assigned_by: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'analyst' | 'viewer';
   department: string;
+  roles?: Role[];
+  is_active?: boolean;
+  auth_created_at?: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export interface Incident {
