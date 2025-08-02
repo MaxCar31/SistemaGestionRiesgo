@@ -57,7 +57,7 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
     return incidents.filter(incident => incident.status === status);
   };
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) {
       return;
     }
@@ -65,7 +65,11 @@ export default function KanbanBoard({ incidents }: KanbanBoardProps) {
     const { draggableId, destination } = result;
     const newStatus = destination.droppableId as Status;
     
-    updateIncident(draggableId, { status: newStatus });
+    try {
+      await updateIncident(draggableId, { status: newStatus });
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+    }
   };
 
   const IncidentCard = ({ incident, index }: { incident: Incident; index: number }) => (
