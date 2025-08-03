@@ -24,11 +24,10 @@ const viewMap: Record<string, string> = {
 }
 
 function AppContent() {
-  const { loading, currentUser } = useApp()
+  const { loading } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const [activeView, setActiveView] = useState('dashboard')
-  console.log('Current User:', currentUser)
 
   useEffect(() => {
     const path = location.pathname.replace('/', '')
