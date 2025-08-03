@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { useAuth } from './hooks/useAuth';
 import LoginForm from './components/Auth/LoginForm';
@@ -12,8 +12,30 @@ import RoleManagementView from './components/Users/RoleManagementView';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function AppContent() {
-  const [activeView, setActiveView] = useState('dashboard');
+  const validViews = ['dashboard', 'incidents', 'users', 'roles', 'audit', 'settings'];
+
+  const getViewFromPath = () => {
+    const path = window.location.pathname.replace('/', '');
+    return validViews.includes(path) ? path : 'dashboard';
+  };
+
+  const [activeView, setActiveViewState] = useState(getViewFromPath);
   const { loading } = useApp();
+
+  useEffect(() => {
+    const handlePopState = () => setActiveViewState(getViewFromPath());
+    window.addEventListener('popstate', handlePopState);
+    const current = window.location.pathname.replace('/', '');
+    if (!validViews.includes(current)) {
+      window.history.replaceState(null, '', '/dashboard');
+    }
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const setActiveView = (view: string) => {
+    setActiveViewState(view);
+    window.history.pushState(null, '', `/${view}`);
+  };
 
   if (loading) {
     return (
