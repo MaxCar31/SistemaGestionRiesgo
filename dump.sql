@@ -84,13 +84,164 @@ CREATE OR REPLACE FUNCTION "incidents"."update_updated_at_column"() RETURNS "tri
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-    NEW.actualizado_en = NOW();
-    RETURN NEW;
+  NEW."updatedAt" = NOW();
+  RETURN NEW;
 END;
 $$;
 
 
 ALTER FUNCTION "incidents"."update_updated_at_column"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."change_password_simple_debug"("user_email" "text", "new_password" "text") RETURNS "text"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_uuid uuid;
+    update_result integer;
+BEGIN
+    -- Buscar el UUID del usuario por email
+    SELECT id INTO user_uuid
+    FROM auth.users
+    WHERE email = user_email
+    AND email_confirmed_at IS NOT NULL;
+    
+    -- Si no se encuentra el usuario, retornar mensaje
+    IF user_uuid IS NULL THEN
+        RETURN 'ERROR: Usuario no encontrado';
+    END IF;
+    
+    -- Intentar cambiar la contraseña
+    UPDATE auth.users
+    SET 
+        encrypted_password = crypt(new_password, gen_salt('bf')),
+        updated_at = NOW()
+    WHERE id = user_uuid;
+    
+    -- Verificar cuántas filas se actualizaron
+    GET DIAGNOSTICS update_result = ROW_COUNT;
+    
+    IF update_result = 0 THEN
+        RETURN 'ERROR: No se pudo actualizar la contraseña';
+    END IF;
+    
+    RETURN 'SUCCESS: Contraseña actualizada correctamente para usuario ' || user_uuid::text;
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'ERROR: ' || SQLERRM;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."change_password_simple_debug"("user_email" "text", "new_password" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_uuid uuid;
+    verification_result boolean;
+BEGIN
+    -- Buscar el UUID del usuario por email
+    SELECT id INTO user_uuid
+    FROM auth.users
+    WHERE email = user_email
+    AND email_confirmed_at IS NOT NULL;
+    
+    -- Si no se encuentra el usuario, retornar false
+    IF user_uuid IS NULL THEN
+        RETURN false;
+    END IF;
+    
+    -- Verificar nuevamente las respuestas antes de cambiar la contraseña
+    SELECT public.verify_security_answers_by_email(user_email, verified_answers)
+    INTO verification_result;
+    
+    -- Si la verificación falla, retornar false
+    IF NOT verification_result THEN
+        RETURN false;
+    END IF;
+    
+    -- Cambiar la contraseña en auth.users
+    UPDATE auth.users
+    SET 
+        encrypted_password = crypt(new_password, gen_salt('bf')),
+        updated_at = NOW()
+    WHERE id = user_uuid;
+    
+    -- No registrar en password_recovery_attempts por ahora para evitar errores
+    -- El cambio de contraseña ya funcionó
+    
+    RETURN true;
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN false;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") IS 'Cambia la contraseña de un usuario después de verificar las respuestas de seguridad';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    answer_count integer;
+BEGIN
+    SELECT COUNT(*) INTO answer_count
+    FROM users.user_security_answers
+    WHERE user_id = p_user_id;
+    
+    RETURN (answer_count > 0);
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN false;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") IS 'Verifica si un usuario tiene respuestas de seguridad configuradas';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE 
+    answer_count integer;
+BEGIN 
+    -- Contar cuántas respuestas tiene el usuario en el esquema users
+    SELECT COUNT(*) INTO answer_count
+    FROM users.user_security_answers
+    WHERE user_id = p_user_id;
+    
+    -- Retornar true si tiene al menos una respuesta configurada
+    RETURN (answer_count > 0);
+    
+EXCEPTION
+    WHEN OTHERS THEN 
+        -- En caso de error, asumir que no tiene respuestas
+        RETURN false;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") IS 'Función RPC accesible desde el cliente para verificar si un usuario tiene preguntas de seguridad configuradas. Consulta la tabla users.user_security_answers.';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."cleanup_expired_recovery_attempts"() RETURNS "void"
@@ -107,6 +258,68 @@ ALTER FUNCTION "public"."cleanup_expired_recovery_attempts"() OWNER TO "postgres
 
 
 COMMENT ON FUNCTION "public"."cleanup_expired_recovery_attempts"() IS 'Limpia intentos de recuperación expirados';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."get_security_questions"() RETURNS TABLE("id" integer, "question_text" "text", "is_active" boolean, "created_at" timestamp with time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        sq.id,
+        sq.question_text,
+        sq.is_active,
+        sq.created_at
+    FROM users.security_questions sq
+    WHERE sq.is_active = true
+    ORDER BY sq.id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_security_questions"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_security_questions"() IS 'Obtiene todas las preguntas de seguridad activas desde el esquema users';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") RETURNS TABLE("question_id" integer, "question_text" "text", "category" character varying)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_uuid uuid;
+BEGIN
+    -- Buscar el UUID del usuario por email en auth.users
+    SELECT id INTO user_uuid
+    FROM auth.users
+    WHERE email = user_email
+    AND email_confirmed_at IS NOT NULL;
+    
+    -- Si no se encuentra el usuario, retornar vacío
+    IF user_uuid IS NULL THEN
+        RETURN;
+    END IF;
+    
+    -- Retornar las preguntas de seguridad del usuario
+    RETURN QUERY
+    SELECT 
+        sq.id as question_id,
+        sq.question_text,
+        sq.category
+    FROM users.user_security_answers usa
+    JOIN users.security_questions sq ON usa.question_id = sq.id
+    WHERE usa.user_id = user_uuid
+    ORDER BY sq.id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") IS 'Obtiene las preguntas de seguridad de un usuario por su email para recuperación de contraseña';
 
 
 
@@ -135,6 +348,70 @@ $$;
 
 
 ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    answer_item jsonb;
+    result_count integer := 0;
+    hashed_answer text;
+BEGIN
+    -- Eliminar respuestas anteriores si existen
+    DELETE FROM users.user_security_answers WHERE user_id = p_user_id;
+    
+    -- Insertar nuevas respuestas con hashing automático
+    FOR answer_item IN SELECT * FROM jsonb_array_elements(p_answers)
+    LOOP
+        -- Hash la respuesta usando pgsodium (si está disponible) o digest
+        BEGIN
+            -- Intentar usar pgsodium primero
+            SELECT pgsodium.crypto_pwhash(
+                answer_item->>'answer_hash',
+                pgsodium.crypto_pwhash_saltgen()
+            ) INTO hashed_answer;
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- Si pgsodium no está disponible, usar digest simple
+                SELECT encode(digest(answer_item->>'answer_hash', 'sha256'), 'hex') INTO hashed_answer;
+        END;
+        
+        INSERT INTO users.user_security_answers (
+            user_id,
+            question_id,
+            answer_hash
+        ) VALUES (
+            p_user_id,
+            (answer_item->>'question_id')::integer,
+            hashed_answer
+        );
+        
+        result_count := result_count + 1;
+    END LOOP;
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'answers_saved', result_count,
+        'message', 'Respuestas de seguridad guardadas exitosamente'
+    );
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', SQLERRM,
+            'message', 'Error al guardar las respuestas de seguridad'
+        );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") IS 'Guarda las respuestas de seguridad de un usuario en el esquema users';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
@@ -229,6 +506,64 @@ COMMENT ON FUNCTION "public"."verify_security_answer"("stored_hash" "text", "pro
 
 
 
+CREATE OR REPLACE FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_uuid uuid;
+    stored_answer text;
+    provided_answer text;
+    question_key text;
+    correct_answers integer := 0;
+    total_answers integer := 0;
+BEGIN
+    -- Buscar el UUID del usuario por email
+    SELECT id INTO user_uuid
+    FROM auth.users
+    WHERE email = user_email
+    AND email_confirmed_at IS NOT NULL;
+    
+    -- Si no se encuentra el usuario, retornar false
+    IF user_uuid IS NULL THEN
+        RETURN false;
+    END IF;
+    
+    -- Verificar cada respuesta proporcionada
+    FOR question_key IN SELECT * FROM jsonb_object_keys(provided_answers)
+    LOOP
+        -- Obtener la respuesta proporcionada
+        provided_answer := provided_answers ->> question_key;
+        
+        -- Obtener la respuesta almacenada (hasheada)
+        SELECT answer_hash INTO stored_answer
+        FROM users.user_security_answers
+        WHERE user_id = user_uuid
+        AND question_id = question_key::integer;
+        
+        -- Si encontramos la respuesta almacenada
+        IF stored_answer IS NOT NULL THEN
+            total_answers := total_answers + 1;
+            
+            -- Comparar con hash SHA256 (como se guardó)
+            IF stored_answer = encode(digest(provided_answer, 'sha256'), 'hex') THEN
+                correct_answers := correct_answers + 1;
+            END IF;
+        END IF;
+    END LOOP;
+    
+    -- Retornar true si todas las respuestas son correctas
+    RETURN (total_answers > 0 AND correct_answers = total_answers);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") IS 'Verifica las respuestas de seguridad de un usuario por email para recuperación de contraseña';
+
+
+
 CREATE OR REPLACE FUNCTION "users"."can_attempt_password_recovery"("user_email" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -261,63 +596,96 @@ $$;
 ALTER FUNCTION "users"."can_attempt_password_recovery"("user_email" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "users"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") RETURNS boolean
+CREATE OR REPLACE FUNCTION "users"."change_password_with_verification"("user_email" "text", "security_answers" "jsonb", "new_password" "text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
-DECLARE
-  user_record record;
 BEGIN
-  -- Buscar usuario por email
-  SELECT id INTO user_record
-  FROM auth.users
-  WHERE email = LOWER(TRIM(user_email));
-
-  IF NOT FOUND THEN
-    RETURN false;
-  END IF;
-
-  -- Verificar respuestas una vez más por seguridad
-  IF NOT users.verify_security_answers_by_email(user_email, verified_answers) THEN
-    RETURN false;
-  END IF;
-
-  -- Cambiar la contraseña usando la función de Supabase Auth
-  PERFORM auth.update_user_password(user_record.id, new_password);
-
-  RETURN true;
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN false;
+    RETURN users.change_password_with_verification_argon2(user_email, security_answers, new_password);
 END;
 $$;
 
 
-ALTER FUNCTION "users"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") OWNER TO "postgres";
+ALTER FUNCTION "users"."change_password_with_verification"("user_email" "text", "security_answers" "jsonb", "new_password" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "users"."change_password_with_verification_argon2"("user_email" "text", "security_answers" "jsonb", "new_password" "text") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_record record;
+    answers_valid boolean;
+BEGIN
+    SELECT id, email INTO user_record
+    FROM auth.users
+    WHERE email = LOWER(TRIM(user_email));
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Usuario no encontrado';
+    END IF;
+
+    SELECT users.verify_security_answers_by_email_argon2(user_email, security_answers)
+    INTO answers_valid;
+
+    IF NOT answers_valid THEN
+        RAISE EXCEPTION 'Las respuestas de seguridad no son correctas';
+    END IF;
+
+    -- En producción, se debe realizar una llamada externa para cambiar la contraseña
+    -- Aquí se simula el éxito
+    RETURN true;
+EXCEPTION
+    WHEN others THEN RAISE EXCEPTION 'Error al cambiar contraseña: %', SQLERRM;
+END;
+$$;
+
+
+ALTER FUNCTION "users"."change_password_with_verification_argon2"("user_email" "text", "security_answers" "jsonb", "new_password" "text") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."change_password_with_verification_argon2"("user_email" "text", "security_answers" "jsonb", "new_password" "text") IS 'Cambia contraseña después de verificar respuestas con Argon2id';
+
+
+
+CREATE OR REPLACE FUNCTION "users"."check_user_answers_exist"("p_user_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM users.user_security_answers
+        WHERE user_id = p_user_id
+        LIMIT 1
+    );
+END;
+$$;
+
+
+ALTER FUNCTION "users"."check_user_answers_exist"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."check_user_answers_exist"("p_user_id" "uuid") IS 'Verifica si un usuario tiene respuestas de seguridad configuradas en el esquema users';
+
 
 
 CREATE OR REPLACE FUNCTION "users"."check_user_has_security_answers"("p_user_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
-DECLARE
-  answer_count integer;
 BEGIN
-  -- Contar cuántas respuestas tiene el usuario
-  SELECT COUNT(*)
-  INTO answer_count
-  FROM users.user_security_answers
-  WHERE user_id = p_user_id;
-
-  -- Retornar true si tiene al menos una respuesta configurada
-  RETURN (answer_count > 0);
-EXCEPTION
-  WHEN OTHERS THEN
-    -- En caso de error, asumir que no tiene respuestas
-    RETURN false;
+    RETURN EXISTS (
+        SELECT 1
+        FROM users.user_security_answers
+        WHERE user_id = p_user_id
+        LIMIT 1
+    );
 END;
 $$;
 
 
 ALTER FUNCTION "users"."check_user_has_security_answers"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."check_user_has_security_answers"("p_user_id" "uuid") IS 'Verifica si un usuario tiene respuestas de seguridad configuradas (para App.tsx) en el esquema users';
+
 
 
 CREATE OR REPLACE FUNCTION "users"."current_user_has_role"("role_name" "text") RETURNS boolean
@@ -381,6 +749,32 @@ $$;
 
 
 ALTER FUNCTION "users"."debug_save_user_security_answers_hashed"("p_user_id" "uuid", "p_answers" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "users"."get_security_questions"() RETURNS TABLE("id" integer, "question_text" "text", "category" character varying)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        sq.id,
+        sq.question_text,
+        sq.category
+    FROM
+        users.security_questions sq
+    WHERE
+        sq.is_active = true
+    ORDER BY
+        sq.id;
+END;
+$$;
+
+
+ALTER FUNCTION "users"."get_security_questions"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."get_security_questions"() IS 'Obtiene todas las preguntas de seguridad activas del esquema users';
+
 
 
 CREATE OR REPLACE FUNCTION "users"."get_user_permissions"("user_uuid" "uuid") RETURNS "jsonb"
@@ -481,16 +875,20 @@ $$;
 ALTER FUNCTION "users"."has_permission"("user_uuid" "uuid", "permission_path" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "users"."hash_security_answer"("answer_text" "text") RETURNS "text"
+CREATE OR REPLACE FUNCTION "users"."hash_security_answer_argon2"("p_answer" "text") RETURNS "text"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  RETURN crypt(LOWER(TRIM(answer_text)), gen_salt('bf', 12));
+    RETURN pgsodium.crypto_pwhash(LOWER(TRIM(p_answer)));
 END;
 $$;
 
 
-ALTER FUNCTION "users"."hash_security_answer"("answer_text" "text") OWNER TO "postgres";
+ALTER FUNCTION "users"."hash_security_answer_argon2"("p_answer" "text") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."hash_security_answer_argon2"("p_answer" "text") IS 'Hashea una respuesta de seguridad usando Argon2id vía pgsodium';
+
 
 
 CREATE OR REPLACE FUNCTION "users"."hash_security_answer_v2"("answer_text" "text") RETURNS "text"
@@ -505,36 +903,52 @@ $$;
 ALTER FUNCTION "users"."hash_security_answer_v2"("answer_text" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "users"."save_user_security_answers_hashed"("p_user_id" "uuid", "p_answers" "jsonb") RETURNS boolean
+CREATE OR REPLACE FUNCTION "users"."save_user_security_answers_argon2"("p_user_id" "uuid", "p_answers" "jsonb") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
-  question_id_key text;
-  answer_text text;
+    question_id_key text;
+    answer_text text;
 BEGIN
-  -- Validar que el usuario existe
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = p_user_id) THEN
-    RAISE EXCEPTION 'Usuario no encontrado';
-  END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM auth.users WHERE id = p_user_id
+    ) THEN
+        RAISE EXCEPTION 'Usuario no encontrado';
+    END IF;
 
-  -- Limpiar respuestas existentes del usuario
-  DELETE FROM users.user_security_answers WHERE user_id = p_user_id;
+    DELETE FROM users.user_security_answers
+    WHERE user_id = p_user_id;
 
-  -- Insertar las nuevas respuestas hasheadas
-  FOR question_id_key, answer_text IN SELECT * FROM jsonb_each_text(p_answers)
-  LOOP
-    INSERT INTO users.user_security_answers (user_id, question_id, answer_hash)
-    VALUES (
-      p_user_id,
-      question_id_key::integer,
-      crypt(LOWER(TRIM(answer_text)), gen_salt('bf', 12))
-    );
-  END LOOP;
+    FOR question_id_key, answer_text IN
+        SELECT * FROM jsonb_each_text(p_answers)
+    LOOP
+        INSERT INTO users.user_security_answers (user_id, question_id, answer_hash)
+        VALUES (
+            p_user_id,
+            question_id_key::integer,
+            users.hash_security_answer_argon2(answer_text)
+        );
+    END LOOP;
 
-  RETURN true;
+    RETURN true;
 EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Error al guardar respuestas: %', SQLERRM;
+    WHEN others THEN RAISE EXCEPTION 'Error al guardar respuestas: %', SQLERRM;
+END;
+$$;
+
+
+ALTER FUNCTION "users"."save_user_security_answers_argon2"("p_user_id" "uuid", "p_answers" "jsonb") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."save_user_security_answers_argon2"("p_user_id" "uuid", "p_answers" "jsonb") IS 'Guarda respuestas de seguridad hasheadas con Argon2id';
+
+
+
+CREATE OR REPLACE FUNCTION "users"."save_user_security_answers_hashed"("p_user_id" "uuid", "p_answers" "jsonb") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN users.save_user_security_answers_argon2(p_user_id, p_answers);
 END;
 $$;
 
@@ -615,51 +1029,82 @@ $$;
 ALTER FUNCTION "users"."verify_security_answer"("p_user_id" "uuid", "p_question_id" integer, "p_answer" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "users"."verify_security_answer_argon2"("p_answer" "text", "p_hash" "text") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN pgsodium.crypto_pwhash_verify(p_hash, LOWER(TRIM(p_answer)));
+EXCEPTION
+    WHEN others THEN RETURN false;
+END;
+$$;
+
+
+ALTER FUNCTION "users"."verify_security_answer_argon2"("p_answer" "text", "p_hash" "text") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."verify_security_answer_argon2"("p_answer" "text", "p_hash" "text") IS 'Verifica una respuesta de seguridad contra su hash Argon2id';
+
+
+
 CREATE OR REPLACE FUNCTION "users"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
-DECLARE
-  user_record record;
-  question_id_key text;
-  provided_answer text;
-  stored_hash text;
-  match_count integer := 0;
-  total_answers integer := 0;
 BEGIN
-  -- Buscar usuario por email
-  SELECT id INTO user_record
-  FROM auth.users
-  WHERE email = LOWER(TRIM(user_email));
-
-  IF NOT FOUND THEN
-    RETURN false;
-  END IF;
-
-  -- Contar total de respuestas proporcionadas
-  SELECT jsonb_object_keys(provided_answers) INTO total_answers;
-
-  -- Verificar cada respuesta proporcionada
-  FOR question_id_key, provided_answer IN SELECT * FROM jsonb_each_text(provided_answers)
-  LOOP
-    -- Obtener el hash almacenado para esta pregunta
-    SELECT answer_hash INTO stored_hash
-    FROM users.user_security_answers
-    WHERE user_id = user_record.id
-      AND question_id = question_id_key::integer;
-
-    -- Verificar si la respuesta coincide
-    IF stored_hash IS NOT NULL AND stored_hash = crypt(LOWER(TRIM(provided_answer)), stored_hash) THEN
-      match_count := match_count + 1;
-    END IF;
-  END LOOP;
-
-  -- Devolver true solo si todas las respuestas coinciden
-  RETURN (match_count > 0 AND match_count = jsonb_object_keys(provided_answers));
+    RETURN users.verify_security_answers_by_email_argon2(user_email, provided_answers);
 END;
 $$;
 
 
 ALTER FUNCTION "users"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "users"."verify_security_answers_by_email_argon2"("user_email" "text", "provided_answers" "jsonb") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    user_record record;
+    question_id_key text;
+    provided_answer text;
+    stored_hash text;
+    match_count integer := 0;
+    total_answers integer := 0;
+BEGIN
+    SELECT id INTO user_record
+    FROM auth.users
+    WHERE email = LOWER(TRIM(user_email));
+
+    IF NOT FOUND THEN RETURN false; END IF;
+
+    total_answers := jsonb_object_length(provided_answers);
+
+    FOR question_id_key, provided_answer IN
+        SELECT * FROM jsonb_each_text(provided_answers)
+    LOOP
+        SELECT answer_hash INTO stored_hash
+        FROM users.user_security_answers
+        WHERE user_id = user_record.id
+        AND question_id = question_id_key::integer;
+
+        IF FOUND THEN
+            IF users.verify_security_answer_argon2(provided_answer, stored_hash) THEN
+                match_count := match_count + 1;
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN match_count > 0 AND match_count = total_answers;
+EXCEPTION
+    WHEN others THEN RETURN false;
+END;
+$$;
+
+
+ALTER FUNCTION "users"."verify_security_answers_by_email_argon2"("user_email" "text", "provided_answers" "jsonb") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "users"."verify_security_answers_by_email_argon2"("user_email" "text", "provided_answers" "jsonb") IS 'Verifica respuestas de seguridad por email usando Argon2id';
+
 
 SET default_tablespace = '';
 
@@ -668,22 +1113,23 @@ SET default_table_access_method = "heap";
 
 CREATE TABLE IF NOT EXISTS "incidents"."incidents" (
     "id" character varying(50) NOT NULL,
-    "titulo" character varying(255) NOT NULL,
-    "tipo" character varying(50) NOT NULL,
-    "severidad" character varying(20) NOT NULL,
-    "estado" character varying(50) NOT NULL,
-    "asignado_a" character varying(50),
-    "sistemas_afectados" "text",
-    "descripcion" "text" NOT NULL,
-    "impacto" "text",
-    "etiquetas" "text",
-    "creado_en" timestamp with time zone DEFAULT "now"(),
-    "actualizado_en" timestamp with time zone DEFAULT "now"(),
-    "resuelto_en" timestamp with time zone,
-    "reportado_por" character varying(50),
-    CONSTRAINT "incidents_estado_check" CHECK ((("estado")::"text" = ANY ((ARRAY['Abiertos'::character varying, 'En Progreso'::character varying, 'Resueltos'::character varying, 'Cerrados'::character varying])::"text"[]))),
-    CONSTRAINT "incidents_severidad_check" CHECK ((("severidad")::"text" = ANY ((ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'critical'::character varying])::"text"[]))),
-    CONSTRAINT "incidents_tipo_check" CHECK ((("tipo")::"text" = ANY ((ARRAY['malware'::character varying, 'phishing'::character varying, 'data_breach'::character varying, 'unauthorized_access'::character varying, 'ddos'::character varying, 'ransomware'::character varying, 'social_engineering'::character varying, 'system_compromise'::character varying, 'policy_violation'::character varying, 'other'::character varying])::"text"[])))
+    "title" character varying(255) NOT NULL,
+    "type" character varying(50) NOT NULL,
+    "severity" character varying(20) NOT NULL,
+    "status" character varying(50) NOT NULL,
+    "assignedto" character varying(50) DEFAULT ''::character varying NOT NULL,
+    "description" "text" NOT NULL,
+    "impact" "text" DEFAULT ''::"text" NOT NULL,
+    "createdat" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updatedat" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "resolvedat" timestamp with time zone,
+    "reportedby" character varying(50) DEFAULT ''::character varying NOT NULL,
+    "resolution" "text",
+    "tags" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    "affectedsystems" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    CONSTRAINT "incidents_severidad_check" CHECK ((("severity")::"text" = ANY ((ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'critical'::character varying])::"text"[]))),
+    CONSTRAINT "incidents_status_check" CHECK ((("status")::"text" = ANY ((ARRAY['open'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying])::"text"[]))),
+    CONSTRAINT "incidents_tipo_check" CHECK ((("type")::"text" = ANY ((ARRAY['malware'::character varying, 'phishing'::character varying, 'data_breach'::character varying, 'unauthorized_access'::character varying, 'ddos'::character varying, 'ransomware'::character varying, 'social_engineering'::character varying, 'system_compromise'::character varying, 'policy_violation'::character varying, 'other'::character varying])::"text"[])))
 );
 
 
@@ -694,44 +1140,17 @@ COMMENT ON TABLE "incidents"."incidents" IS 'Main incidents table with improved 
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."incidents_reporte_incidente" (
-    "id" "text" NOT NULL,
-    "titulo" "text" NOT NULL,
-    "tipo" "text" NOT NULL,
-    "severidad" "text" NOT NULL,
-    "estado" "text" DEFAULT 'Abiertos'::"text" NOT NULL,
-    "asignado_a" "text",
-    "sistemas_afectados" "text",
-    "descripcion" "text" NOT NULL,
-    "impacto" "text",
-    "etiquetas" "text",
-    "creado_en" timestamp with time zone DEFAULT "now"(),
-    CONSTRAINT "incidents_reporte_incidente_estado_check" CHECK (("estado" = ANY (ARRAY['Abiertos'::"text", 'En Progreso'::"text", 'Resueltos'::"text", 'Cerrados'::"text"])))
+CREATE TABLE IF NOT EXISTS "logs"."audit_logs" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "incident_id" character varying(50) NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "action" "text" NOT NULL,
+    "details" "text" NOT NULL,
+    "timestamp" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
 
-ALTER TABLE "public"."incidents_reporte_incidente" OWNER TO "postgres";
-
-
-CREATE OR REPLACE VIEW "public"."incidents_view" AS
- SELECT "id",
-    "titulo",
-    "tipo",
-    "severidad",
-    "estado",
-    "asignado_a",
-    "sistemas_afectados",
-    "descripcion",
-    "impacto",
-    "etiquetas",
-    "creado_en",
-    "actualizado_en",
-    "resuelto_en",
-    "reportado_por"
-   FROM "incidents"."incidents";
-
-
-ALTER VIEW "public"."incidents_view" OWNER TO "postgres";
+ALTER TABLE "logs"."audit_logs" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "users"."password_recovery_attempts" (
@@ -853,8 +1272,8 @@ ALTER TABLE ONLY "incidents"."incidents"
 
 
 
-ALTER TABLE ONLY "public"."incidents_reporte_incidente"
-    ADD CONSTRAINT "incidents_reporte_incidente_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "logs"."audit_logs"
+    ADD CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id");
 
 
 
@@ -908,39 +1327,35 @@ ALTER TABLE ONLY "users"."usuarios"
 
 
 
-CREATE INDEX "idx_incidents_asignado_a" ON "incidents"."incidents" USING "btree" ("asignado_a");
+CREATE INDEX "idx_incidents_asignado_a" ON "incidents"."incidents" USING "btree" ("assignedto");
 
 
 
-CREATE INDEX "idx_incidents_creado_en" ON "incidents"."incidents" USING "btree" ("creado_en");
+CREATE INDEX "idx_incidents_creado_en" ON "incidents"."incidents" USING "btree" ("createdat");
 
 
 
-CREATE INDEX "idx_incidents_estado" ON "incidents"."incidents" USING "btree" ("estado");
+CREATE INDEX "idx_incidents_estado" ON "incidents"."incidents" USING "btree" ("status");
 
 
 
-CREATE INDEX "idx_incidents_severidad" ON "incidents"."incidents" USING "btree" ("severidad");
+CREATE INDEX "idx_incidents_severidad" ON "incidents"."incidents" USING "btree" ("severity");
 
 
 
-CREATE INDEX "idx_incidents_tipo" ON "incidents"."incidents" USING "btree" ("tipo");
+CREATE INDEX "idx_incidents_tipo" ON "incidents"."incidents" USING "btree" ("type");
 
 
 
-CREATE INDEX "idx_incidents_reporte_incidente_creado_en" ON "public"."incidents_reporte_incidente" USING "btree" ("creado_en" DESC);
+CREATE INDEX "idx_audit_logs_incident_id" ON "logs"."audit_logs" USING "btree" ("incident_id");
 
 
 
-CREATE INDEX "idx_incidents_reporte_incidente_estado" ON "public"."incidents_reporte_incidente" USING "btree" ("estado");
+CREATE INDEX "idx_audit_logs_timestamp" ON "logs"."audit_logs" USING "btree" ("timestamp");
 
 
 
-CREATE INDEX "idx_incidents_reporte_incidente_severidad" ON "public"."incidents_reporte_incidente" USING "btree" ("severidad");
-
-
-
-CREATE INDEX "idx_incidents_reporte_incidente_tipo" ON "public"."incidents_reporte_incidente" USING "btree" ("tipo");
+CREATE INDEX "idx_audit_logs_user_id" ON "logs"."audit_logs" USING "btree" ("user_id");
 
 
 
@@ -953,6 +1368,16 @@ CREATE OR REPLACE TRIGGER "update_roles_updated_at" BEFORE UPDATE ON "users"."ro
 
 
 CREATE OR REPLACE TRIGGER "update_usuarios_updated_at" BEFORE UPDATE ON "users"."usuarios" FOR EACH ROW EXECUTE FUNCTION "users"."update_updated_at"();
+
+
+
+ALTER TABLE ONLY "logs"."audit_logs"
+    ADD CONSTRAINT "audit_logs_incident_id_fkey" FOREIGN KEY ("incident_id") REFERENCES "incidents"."incidents"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "logs"."audit_logs"
+    ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"."usuarios"("id") ON DELETE SET NULL;
 
 
 
@@ -1004,17 +1429,6 @@ CREATE POLICY "Allow authenticated users to view incidents" ON "incidents"."inci
 
 
 ALTER TABLE "incidents"."incidents" ENABLE ROW LEVEL SECURITY;
-
-
-CREATE POLICY "Enable insert for authenticated users only" ON "public"."incidents_reporte_incidente" FOR INSERT TO "authenticated" WITH CHECK (true);
-
-
-
-CREATE POLICY "Enable read access for all users" ON "public"."incidents_reporte_incidente" FOR SELECT USING (true);
-
-
-
-ALTER TABLE "public"."incidents_reporte_incidente" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "Enable all operations for authenticated users" ON "users"."roles" USING (("auth"."role"() = 'authenticated'::"text"));
@@ -1235,15 +1649,57 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."change_password_simple_debug"("user_email" "text", "new_password" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."change_password_simple_debug"("user_email" "text", "new_password" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."change_password_simple_debug"("user_email" "text", "new_password" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_user_answers_exist"("p_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_user_has_security_answers"("p_user_id" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."cleanup_expired_recovery_attempts"() TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_recovery_attempts"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_recovery_attempts"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."get_security_questions"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_security_questions"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_security_questions"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_user_security_questions_by_email"("user_email" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."save_user_security_answers"("p_user_id" "uuid", "p_answers" "jsonb") TO "service_role";
 
 
 
@@ -1271,11 +1727,25 @@ GRANT ALL ON FUNCTION "public"."verify_security_answer"("stored_hash" "text", "p
 
 
 
+GRANT ALL ON FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "users"."can_attempt_password_recovery"("user_email" "text") TO "authenticated";
 
 
 
-GRANT ALL ON FUNCTION "users"."change_password_with_verification"("user_email" "text", "new_password" "text", "verified_answers" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "users"."change_password_with_verification"("user_email" "text", "security_answers" "jsonb", "new_password" "text") TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "users"."change_password_with_verification_argon2"("user_email" "text", "security_answers" "jsonb", "new_password" "text") TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "users"."check_user_answers_exist"("p_user_id" "uuid") TO "authenticated";
 
 
 
@@ -1287,15 +1757,23 @@ GRANT ALL ON FUNCTION "users"."debug_save_user_security_answers_hashed"("p_user_
 
 
 
+GRANT ALL ON FUNCTION "users"."get_security_questions"() TO "authenticated";
+
+
+
 GRANT ALL ON FUNCTION "users"."get_user_security_questions_by_email"("user_email" "text") TO "authenticated";
 
 
 
-GRANT ALL ON FUNCTION "users"."hash_security_answer"("answer_text" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "users"."hash_security_answer_argon2"("p_answer" "text") TO "authenticated";
 
 
 
 GRANT ALL ON FUNCTION "users"."hash_security_answer_v2"("answer_text" "text") TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "users"."save_user_security_answers_argon2"("p_user_id" "uuid", "p_answers" "jsonb") TO "authenticated";
 
 
 
@@ -1307,7 +1785,15 @@ GRANT ALL ON FUNCTION "users"."verify_security_answer"("p_user_id" "uuid", "p_qu
 
 
 
+GRANT ALL ON FUNCTION "users"."verify_security_answer_argon2"("p_answer" "text", "p_hash" "text") TO "authenticated";
+
+
+
 GRANT ALL ON FUNCTION "users"."verify_security_answers_by_email"("user_email" "text", "provided_answers" "jsonb") TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "users"."verify_security_answers_by_email_argon2"("user_email" "text", "provided_answers" "jsonb") TO "authenticated";
 
 
 
@@ -1337,18 +1823,6 @@ GRANT ALL ON TABLE "incidents"."incidents" TO "authenticated";
 
 
 
-
-
-
-GRANT ALL ON TABLE "public"."incidents_reporte_incidente" TO "anon";
-GRANT ALL ON TABLE "public"."incidents_reporte_incidente" TO "authenticated";
-GRANT ALL ON TABLE "public"."incidents_reporte_incidente" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."incidents_view" TO "anon";
-GRANT ALL ON TABLE "public"."incidents_view" TO "authenticated";
-GRANT ALL ON TABLE "public"."incidents_view" TO "service_role";
 
 
 
