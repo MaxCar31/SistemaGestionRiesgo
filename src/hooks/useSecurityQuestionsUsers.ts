@@ -27,7 +27,7 @@ export default function useSecurityQuestionsUsers() {
 
   const loadQuestions = useCallback(async () => {
     try {
-      console.log('🔍 Debug - Cargando preguntas usando RPC...');
+      console.log('🔍 Debug - Cargando preguntas usando RPC del esquema public...');
       
       const { data, error } = await supabase.rpc('get_security_questions');
 
@@ -98,22 +98,22 @@ export default function useSecurityQuestionsUsers() {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
       // Convertir array de respuestas al formato que espera la función RPC
-      const answersForRpc = answers.map(answer => ({
-        question_id: answer.question_id,
-        answer_hash: answer.answer // La función RPC se encargará del hashing
+      const answersArray = answers.map(answer => ({
+        question_id: answer.question_id.toString(),
+        answer_hash: answer.answer
       }));
 
-      console.log('🔍 Debug - Respuestas para RPC:', answersForRpc);
+      console.log('🔍 Debug - Array de respuestas para RPC:', answersArray);
       console.log('🔍 Debug - User ID para RPC:', user.id);
 
-      // Usar la función RPC del esquema public que creamos
+      // Usar la función RPC del esquema public que existe
       console.log('🔍 Debug - Llamando a save_user_security_answers...');
       
       const { data, error } = await supabase.rpc(
         'save_user_security_answers',
         {
           p_user_id: user.id,
-          p_answers: answersForRpc
+          p_answers: answersArray
         }
       );
 
@@ -131,12 +131,18 @@ export default function useSecurityQuestionsUsers() {
         throw new Error(`Error RPC: ${error.message} (${error.code})`);
       }
 
-      if (!data || !data.success) {
-        console.error('❌ RPC falló:', data);
-        throw new Error(data?.message || 'Error al guardar las respuestas de seguridad');
+      // La función ahora retorna un objeto con información del resultado
+      if (data && data.success === false) {
+        console.error('❌ RPC retornó FALSE:', data);
+        throw new Error(data.message || 'La función RPC falló al guardar');
       }
 
-      console.log('✅ Respuestas de seguridad guardadas correctamente');
+      if (!data || !data.success) {
+        console.error('❌ RPC retornó resultado inesperado:', data);
+        throw new Error('No se pudieron guardar las respuestas de seguridad');
+      }
+
+      console.log('✅ Respuestas de seguridad guardadas correctamente:', data);
 
       setState(prev => ({
         ...prev,

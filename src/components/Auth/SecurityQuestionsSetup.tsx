@@ -70,17 +70,21 @@ export default function SecurityQuestionsSetup({
 
   // Manejar cambio de pregunta seleccionada
   const handleQuestionChange = (index: number, questionId: number) => {
+    console.log('🔍 Cambio de pregunta:', { index, questionId });
     const newAnswers = [...selectedAnswers];
     newAnswers[index] = { question_id: questionId, answer: '' };
     setSelectedAnswers(newAnswers);
+    console.log('🔍 Nuevas respuestas:', newAnswers);
     setValidationErrors([]);
   };
 
   // Manejar cambio de respuesta
   const handleAnswerChange = (index: number, answer: string) => {
+    console.log('🔍 Cambio de respuesta:', { index, answer });
     const newAnswers = [...selectedAnswers];
     newAnswers[index] = { ...newAnswers[index], answer };
     setSelectedAnswers(newAnswers);
+    console.log('🔍 Nuevas respuestas:', newAnswers);
     setValidationErrors([]);
   };
 
@@ -95,20 +99,28 @@ export default function SecurityQuestionsSetup({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🔍 Submit iniciado con respuestas:', selectedAnswers);
+    
     if (!validateForm()) {
+      console.log('❌ Validación falló');
       return;
     }
 
+    console.log('✅ Validación pasada, enviando...');
     setIsSubmitting(true);
     
     try {
       const success = await setupAnswers(selectedAnswers);
+      console.log('🔍 Resultado setupAnswers:', success);
       
       if (success) {
+        console.log('✅ Setup exitoso, llamando onComplete');
         onComplete();
+      } else {
+        console.log('❌ Setup falló');
       }
     } catch (err) {
-      console.error('Error setting up security questions:', err);
+      console.error('❌ Error setting up security questions:', err);
     } finally {
       setIsSubmitting(false);
     }

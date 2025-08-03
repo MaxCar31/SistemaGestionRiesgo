@@ -5,7 +5,8 @@ import {
   Settings,
   Activity,
   Shield,
-  LucideIcon
+  LucideIcon,
+  Stethoscope
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -28,7 +29,8 @@ const menuItems: MenuItem[] = [
   { id: 'users', label: 'Usuarios', icon: Users, requiredPermission: 'canManageUsers' },
   { id: 'roles', label: 'Gestión de Roles', icon: Shield, requiredPermission: 'canManageRoles' },
   { id: 'audit', label: 'Auditoría', icon: Activity, requiredPermission: 'canViewAuditLogs' },
-  { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true }
+  { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true },
+  { id: 'diagnostic', label: 'Diagnóstico', icon: Stethoscope }
 ];
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {

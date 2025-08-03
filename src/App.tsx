@@ -12,6 +12,7 @@ import UsersView from './components/Users/UsersView';
 import AuditView from './components/Audit/AuditView';
 import RoleManagementView from './components/Users/RoleManagementView';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import SystemDiagnostic from './components/Debug/SystemDiagnostic';
 
 function AppContent() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -61,6 +62,8 @@ function AppContent() {
             </div>
           </ProtectedRoute>
         );
+      case 'diagnostic':
+        return <SystemDiagnostic />;
       default:
         return <DashboardView />;
     }
@@ -133,7 +136,9 @@ function App() {
 
         if (error) {
           console.error('Error al verificar preguntas:', error);
-          setNeedsSecuritySetup(false);
+          // Si hay error, asumir que no tiene preguntas configuradas
+          console.log('🎯 Error al verificar, asumiendo que necesita configurar preguntas');
+          setNeedsSecuritySetup(true);
           return;
         }
 
@@ -148,7 +153,9 @@ function App() {
         }
       } catch (error) {
         console.error('Error al verificar preguntas:', error);
-        setNeedsSecuritySetup(false);
+        // En caso de error, mostrar setup de preguntas
+        console.log('🎯 Error catch, asumiendo que necesita configurar preguntas');
+        setNeedsSecuritySetup(true);
       }
     }
 
@@ -159,6 +166,12 @@ function App() {
   const handleSecuritySetupComplete = () => {
     console.log('✅ Setup de preguntas completado');
     setNeedsSecuritySetup(false);
+  };
+
+  // Función temporal para forzar reconfiguración
+  const forceReconfigure = () => {
+    console.log('� Forzando reconfiguración de preguntas...');
+    setNeedsSecuritySetup(true);
   };
 
   if (loading) {
