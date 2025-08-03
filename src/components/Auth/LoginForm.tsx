@@ -40,7 +40,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             data: {
               name: formData.name,
               department: formData.department,
-              role: 'analyst' // Default role
+              role: 'admin'
             }
           }
         });

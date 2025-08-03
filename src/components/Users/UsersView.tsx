@@ -73,8 +73,8 @@ export default function UsersView() {
               </div>
               
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(user.role)}`}>
-                {getRoleIcon(user.role)}
-                <span className="ml-1">{getRoleLabel(user.role)}</span>
+                {getRoleIcon(user.roles[0])}
+                <span className="ml-1">{getRoleLabel(user.roles[0])}</span>
               </span>
             </div>
             

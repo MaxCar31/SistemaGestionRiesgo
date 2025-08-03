@@ -32,53 +32,11 @@ export const mockUsers: User[] = [
 ];
 
 export const mockIncidents: Incident[] = [
+  
   {
-    id: 'INC-001',
-    title: 'Intento de phishing detectado en correos corporativos',
-    description: 'Se detectaron múltiples emails de phishing dirigidos a empleados del departamento de finanzas.',
-    type: 'phishing',
-    severity: 'high',
-    status: 'in_progress',
-    assignedTo: '2',
-    reportedBy: '1',
-    createdAt: new Date('2024-01-15T10:30:00'),
-    updatedAt: new Date('2024-01-15T14:20:00'),
-    tags: ['email', 'finanzas', 'credential_theft'],
-    affectedSystems: ['Exchange Server', 'Outlook Web App'],
-    impact: 'Posible compromiso de credenciales de 15 usuarios del departamento de finanzas'
+
   },
-  {
-    id: 'INC-002',
-    title: 'Acceso no autorizado a servidor de archivos',
-    description: 'Se detectó acceso desde una IP externa no autorizada al servidor de archivos compartidos.',
-    type: 'unauthorized_access',
-    severity: 'critical',
-    status: 'open',
-    assignedTo: '2',
-    reportedBy: '3',
-    createdAt: new Date('2024-01-14T16:45:00'),
-    updatedAt: new Date('2024-01-14T16:45:00'),
-    tags: ['network', 'file_server', 'external_access'],
-    affectedSystems: ['File Server FS-01', 'Network Firewall'],
-    impact: 'Acceso potencial a documentos confidenciales de la empresa'
-  },
-  {
-    id: 'INC-003',
-    title: 'Malware detectado en estación de trabajo',
-    description: 'El antivirus corporativo detectó y bloqueó malware en la computadora del usuario en el área de contabilidad.',
-    type: 'malware',
-    severity: 'medium',
-    status: 'resolved',
-    assignedTo: '3',
-    reportedBy: '2',
-    createdAt: new Date('2024-01-13T09:15:00'),
-    updatedAt: new Date('2024-01-13T15:30:00'),
-    resolvedAt: new Date('2024-01-13T15:30:00'),
-    tags: ['endpoint', 'malware', 'contabilidad'],
-    affectedSystems: ['PC-CONT-05', 'Symantec Endpoint Protection'],
-    impact: 'Sistema comprometido temporalmente, sin propagación detectada',
-    resolution: 'Malware eliminado, sistema limpio y actualizado. Usuario capacitado sobre mejores prácticas.'
-  },
+
   {
     id: 'INC-004',
     title: 'Vulnerabilidad crítica en servidor web público',
