@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { useAuth } from './hooks/useAuth';
 import LoginForm from './components/Auth/LoginForm';
@@ -10,10 +10,39 @@ import UsersView from './components/Users/UsersView';
 import AuditView from './components/Audit/AuditView';
 import RoleManagementView from './components/Users/RoleManagementView';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+
+const viewMap: Record<string, string> = {
+  dashboard: 'dashboard',
+  incidents: 'incidents',
+  users: 'users',
+  roles: 'roles',
+  audit: 'audit',
+  settings: 'settings',
+};
 
 function AppContent() {
-  const [activeView, setActiveView] = useState('dashboard');
   const { loading } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeView, setActiveView] = useState('dashboard');
+
+  useEffect(() => {
+    const path = location.pathname.replace('/', '');
+    if (viewMap[path]) {
+      setActiveView(viewMap[path]);
+    } else if (location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    } else {
+      setActiveView('dashboard');
+    }
+  }, [location.pathname, navigate]);
+
+  const handleViewChange = (view: string) => {
+    setActiveView(view);
+    const url = Object.keys(viewMap).find(key => viewMap[key] === view) || 'dashboard';
+    navigate(`/${url}`);
+  };
 
   if (loading) {
     return (
@@ -68,7 +97,7 @@ function AppContent() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex h-[calc(100vh-4rem)]">
-        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-auto">
           <div className="p-8">
             {renderView()}
@@ -99,7 +128,18 @@ function App() {
 
   return (
     <AppProvider>
-      <AppContent />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/dashboard" element={<AppContent />} />
+          <Route path="/incidents" element={<AppContent />} />
+          <Route path="/users" element={<AppContent />} />
+          <Route path="/roles" element={<AppContent />} />
+          <Route path="/audit" element={<AppContent />} />
+          <Route path="/settings" element={<AppContent />} />
+          <Route path="/" element={<AppContent />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </BrowserRouter>
     </AppProvider>
   );
 }
