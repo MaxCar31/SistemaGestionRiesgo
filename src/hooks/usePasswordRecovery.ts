@@ -54,13 +54,23 @@ export function usePasswordRecovery() {
       // Si existe pero la contraseña es incorrecta, devuelve otro error
       // Verificaremos las respuestas de seguridad basándonos en el usuario actual o demo
 
-      // Usar la función RPC para obtener preguntas de seguridad por email
+      // 🔥 USAR LA NUEVA FUNCIÓN RPC PARA OBTENER PREGUNTAS POR EMAIL
       const { data: userQuestionsData, error: questionsError } = await supabase
         .rpc('get_user_security_questions_by_email', {
           user_email: email.toLowerCase().trim()
         });
 
-      if (questionsError || !userQuestionsData) {
+      if (questionsError) {
+        console.error('Error obteniendo preguntas:', questionsError);
+        setRecoveryState(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Error al buscar las preguntas de seguridad.'
+        }));
+        return false;
+      }
+
+      if (!userQuestionsData || userQuestionsData.length === 0) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
@@ -69,20 +79,8 @@ export function usePasswordRecovery() {
         return false;
       }
 
-      // La función RPC retorna JSON, parsearlo si es necesario
-      const userQuestions = Array.isArray(userQuestionsData) ? userQuestionsData : JSON.parse(userQuestionsData || '[]');
-
-      if (!userQuestions || userQuestions.length === 0) {
-        setRecoveryState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Esta cuenta no tiene preguntas de seguridad configuradas.'
-        }));
-        return false;
-      }
-
       // Convertir a formato SecurityQuestion
-      const questions: SecurityQuestion[] = userQuestions.map((q: {
+      const questions: SecurityQuestion[] = userQuestionsData.map((q: {
         question_id: number;
         question_text: string;
         category: string;
@@ -138,14 +136,30 @@ export function usePasswordRecovery() {
         return false;
       }
 
-      // Usar la función RPC para verificar las respuestas
+      // Convertir el formato de respuestas para la función RPC
+      const answersForRPC: Record<string, string> = {};
+      Object.entries(answers).forEach(([questionId, answer]) => {
+        answersForRPC[questionId.toString()] = answer;
+      });
+
+      // 🔥 USAR LA FUNCIÓN RPC QUE YA EXISTE PARA VERIFICAR RESPUESTAS HASHEADAS
       const { data: verificationResult, error: verificationError } = await supabase
         .rpc('verify_security_answers_by_email', {
           user_email: recoveryState.email.toLowerCase().trim(),
-          provided_answers: answers
+          provided_answers: answersForRPC
         });
 
-      if (verificationError || !verificationResult) {
+      if (verificationError) {
+        console.error('Error en verificación RPC:', verificationError);
+        setRecoveryState(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Error al verificar respuestas. Inténtalo de nuevo.'
+        }));
+        return false;
+      }
+
+      if (!verificationResult) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
@@ -153,6 +167,8 @@ export function usePasswordRecovery() {
         }));
         return false;
       }
+
+      console.log('✅ Respuestas verificadas correctamente');
 
       // Marcar como verificado y continuar al paso de nueva contraseña
       setRecoveryState(prev => ({
