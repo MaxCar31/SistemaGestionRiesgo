@@ -28,7 +28,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
   const handleAnswersSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const allAnswered = recoveryState.questions.every(q => answers[q.id]?.trim());
+    const allAnswered = recoveryState.securityQuestions.every(q => answers[q.id]?.trim());
     if (!allAnswered) return;
     
     await verifyAnswers(answers);
@@ -42,7 +42,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
   };
 
   const handleBack = () => {
-    if (recoveryState.step === 'email') {
+    if (recoveryState.currentStep === 'email') {
       onBackToLogin();
     } else {
       resetRecovery();
@@ -66,13 +66,13 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
             <Lock className="h-8 w-8 text-blue-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {recoveryState.step === 'success' ? '¡Contraseña Actualizada!' : 'Recuperar Contraseña'}
+            {recoveryState.currentStep === 'success' ? '¡Contraseña Actualizada!' : 'Recuperar Contraseña'}
           </h1>
           <p className="text-gray-600">
-            {recoveryState.step === 'email' && 'Ingresa tu correo para iniciar la recuperación'}
-            {recoveryState.step === 'questions' && 'Responde las preguntas de seguridad'}
-            {recoveryState.step === 'password' && 'Crea una nueva contraseña segura'}
-            {recoveryState.step === 'success' && 'Tu contraseña ha sido actualizada exitosamente'}
+            {recoveryState.currentStep === 'email' && 'Ingresa tu correo para iniciar la recuperación'}
+            {recoveryState.currentStep === 'questions' && 'Responde las preguntas de seguridad'}
+            {recoveryState.currentStep === 'newPassword' && 'Crea una nueva contraseña segura'}
+            {recoveryState.currentStep === 'success' && 'Tu contraseña ha sido actualizada exitosamente'}
           </p>
         </div>
 
@@ -85,7 +85,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
         )}
 
         {/* Step 1: Email Input */}
-        {recoveryState.step === 'email' && (
+        {recoveryState.currentStep === 'email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -116,10 +116,10 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
         )}
 
         {/* Step 2: Security Questions */}
-        {recoveryState.step === 'questions' && (
+        {recoveryState.currentStep === 'questions' && (
           <form onSubmit={handleAnswersSubmit} className="space-y-6">
             <div className="space-y-4">
-              {recoveryState.questions.map((question) => (
+              {recoveryState.securityQuestions.map((question) => (
                 <div key={question.id}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {question.question_text}
@@ -139,7 +139,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
 
             <button
               type="submit"
-              disabled={recoveryState.loading || !recoveryState.questions.every(q => answers[q.id]?.trim())}
+              disabled={recoveryState.loading || !recoveryState.securityQuestions.every(q => answers[q.id]?.trim())}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {recoveryState.loading ? 'Verificando...' : 'Verificar Respuestas'}
@@ -148,7 +148,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
         )}
 
         {/* Step 3: New Password */}
-        {recoveryState.step === 'password' && (
+        {recoveryState.currentStep === 'newPassword' && (
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -183,7 +183,7 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
         )}
 
         {/* Step 4: Success */}
-        {recoveryState.step === 'success' && (
+        {recoveryState.currentStep === 'success' && (
           <div className="text-center space-y-6">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -201,14 +201,14 @@ export default function PasswordRecovery({ onBackToLogin }: PasswordRecoveryProp
         )}
 
         {/* Back Button */}
-        {recoveryState.step !== 'success' && (
+        {recoveryState.currentStep !== 'success' && (
           <button
             onClick={handleBack}
             className="mt-6 w-full flex items-center justify-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
             disabled={recoveryState.loading}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            {recoveryState.step === 'email' ? 'Volver al inicio de sesión' : 'Volver'}
+            {recoveryState.currentStep === 'email' ? 'Volver al inicio de sesión' : 'Volver'}
           </button>
         )}
       </div>

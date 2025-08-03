@@ -6,10 +6,15 @@ import type { SecurityQuestion } from '../types/security';
 interface RecoveryState {
   loading: boolean;
   error: string | null;
-  step: 'email' | 'questions' | 'password' | 'success';
+  currentStep: 'email' | 'questions' | 'newPassword' | 'success';
   email: string;
-  questions: SecurityQuestion[];
-  token: string | null;
+  securityQuestions: SecurityQuestion[];
+  isVerified: boolean;
+  userData: {
+    userId: string;
+    userEmail: string;
+  } | null;
+  verifiedAnswers?: Record<number, string>;
 }
 
 // Hook simplificado para recuperación de contraseña
@@ -17,10 +22,11 @@ export function usePasswordRecovery() {
   const [recoveryState, setRecoveryState] = useState<RecoveryState>({
     loading: false,
     error: null,
-    step: 'email',
+    currentStep: 'email',
     email: '',
-    questions: [],
-    token: null
+    securityQuestions: [],
+    isVerified: false,
+    userData: null
   });
 
   // Iniciar proceso de recuperación
@@ -39,90 +45,76 @@ export function usePasswordRecovery() {
       
       // Buscar si existe un usuario con respuestas de seguridad para este email
       // (usaremos el sistema de auth para validar el email)
-      const { data: existingUser } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password: 'invalid_password_for_check'
-      });
+      // const { data: existingUser } = await supabase.auth.signInWithPassword({
+      //   email: email.toLowerCase().trim(),
+      //   password: 'invalid_password_for_check'
+      // });
 
       // Si el email no existe, Supabase devuelve un error específico
       // Si existe pero la contraseña es incorrecta, devuelve otro error
       // Verificaremos las respuestas de seguridad basándonos en el usuario actual o demo
 
-      let userId = null;
-      
-      // Para propósitos de demo, asumiremos que es el usuario demo
-      if (email.toLowerCase().trim() === 'demo@test.com') {
-        // Buscar el ID del usuario demo
-        const { data: demoAnswers } = await supabase
-          .from('user_security_answers')
-          .select('user_id')
-          .limit(1);
-          
-        if (demoAnswers && demoAnswers.length > 0) {
-          userId = demoAnswers[0].user_id;
-        }
-      }
+      // Usar la función RPC para obtener preguntas de seguridad por email
+      const { data: userQuestionsData, error: questionsError } = await supabase
+        .rpc('get_user_security_questions_by_email', {
+          user_email: email.toLowerCase().trim()
+        });
 
-      if (!userId) {
+      if (questionsError || !userQuestionsData) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          error: 'Existir XXXX@mail.com, revisar la bandeja de entrada'
+          error: 'No se encontró una cuenta con ese email o no tiene preguntas de seguridad configuradas.'
         }));
         return false;
       }
 
-      // 2. Obtener las preguntas de seguridad del usuario
-      const { data: userAnswers, error: answersError } = await supabase
-        .from('user_security_answers')
-        .select(`
-          question_id,
-          answer_hash,
-          security_questions (
-            id,
-            question_text,
-            category,
-            is_active,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('user_id', userId);
+      // La función RPC retorna JSON, parsearlo si es necesario
+      const userQuestions = Array.isArray(userQuestionsData) ? userQuestionsData : JSON.parse(userQuestionsData || '[]');
 
-      if (answersError || !userAnswers || userAnswers.length === 0) {
+      if (!userQuestions || userQuestions.length === 0) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          error: 'Esta cuenta no tiene preguntas de seguridad configuradas. Contacta al administrador.'
+          error: 'Esta cuenta no tiene preguntas de seguridad configuradas.'
         }));
         return false;
       }
 
-      // 3. Extraer las preguntas para mostrar al usuario
-      const questions: SecurityQuestion[] = userAnswers.map((answer: any) => ({
-        id: answer.security_questions.id,
-        question_text: answer.security_questions.question_text,
-        category: answer.security_questions.category,
-        is_active: answer.security_questions.is_active,
-        created_at: answer.security_questions.created_at,
-        updated_at: answer.security_questions.updated_at
+      // Convertir a formato SecurityQuestion
+      const questions: SecurityQuestion[] = userQuestions.map((q: {
+        question_id: number;
+        question_text: string;
+        category: string;
+      }) => ({
+        id: q.question_id,
+        question_text: q.question_text,
+        category: q.category,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }));
 
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        questions,
-        step: 'questions'
+        email: email.toLowerCase().trim(),
+        securityQuestions: questions,
+        currentStep: 'questions',
+        userData: {
+          userId: '', // Se llenará después si es necesario
+          userEmail: email.toLowerCase().trim()
+        }
       }));
 
       return true;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error initiating password recovery:', error);
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al iniciar recuperación'
+        error: 'Error al iniciar recuperación'
       }));
       return false;
     }
@@ -137,77 +129,48 @@ export function usePasswordRecovery() {
         error: null 
       }));
 
-      // 1. Obtener el usuario por email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', recoveryState.email.toLowerCase().trim())
-        .single();
-
-      if (userError || !userData) {
+      if (!recoveryState.email) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          error: 'Error al verificar las respuestas'
+          error: 'No se encontró el email del usuario. Reinicia el proceso.'
         }));
         return false;
       }
 
-      // 2. Obtener las respuestas almacenadas del usuario
-      const { data: storedAnswers, error: answersError } = await supabase
-        .from('user_security_answers')
-        .select('question_id, answer_hash')
-        .eq('user_id', userData.id);
+      // Usar la función RPC para verificar las respuestas
+      const { data: verificationResult, error: verificationError } = await supabase
+        .rpc('verify_security_answers_by_email', {
+          user_email: recoveryState.email.toLowerCase().trim(),
+          provided_answers: answers
+        });
 
-      if (answersError || !storedAnswers) {
+      if (verificationError || !verificationResult) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          error: 'Error al verificar las respuestas'
+          error: 'Una o más respuestas son incorrectas. Verifica tus respuestas e inténtalo de nuevo.'
         }));
         return false;
       }
 
-      // 3. Verificar que todas las respuestas coincidan
-      const allAnswersCorrect = storedAnswers.every((stored: any) => {
-        const userAnswer = answers[stored.question_id];
-        if (!userAnswer) return false;
-        
-        // Normalizar respuesta del usuario (lowercase y trim)
-        const normalizedUserAnswer = userAnswer.toLowerCase().trim();
-        
-        // Comparar con la respuesta almacenada
-        // NOTA: En producción deberías usar hash, aquí comparamos texto directo
-        return normalizedUserAnswer === stored.answer_hash;
-      });
-
-      if (!allAnswersCorrect) {
-        setRecoveryState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Las respuestas no son correctas. Intenta nuevamente.'
-        }));
-        return false;
-      }
-
-      // 4. Si todas las respuestas son correctas, generar token
-      const token = 'recovery_' + Math.random().toString(36).substr(2, 9);
-
+      // Marcar como verificado y continuar al paso de nueva contraseña
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        token,
-        step: 'password'
+        currentStep: 'newPassword',
+        isVerified: true,
+        verifiedAnswers: answers
       }));
 
       return true;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error verifying answers:', error);
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al verificar respuestas'
+        error: 'Error al verificar respuestas'
       }));
       return false;
     }
@@ -222,72 +185,62 @@ export function usePasswordRecovery() {
         error: null 
       }));
 
-      // 1. Obtener el usuario por email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', recoveryState.email.toLowerCase().trim())
-        .single();
-
-      if (userError || !userData) {
+      if (!recoveryState.email || !recoveryState.verifiedAnswers) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          error: 'Error al cambiar la contraseña'
+          error: 'No se puede cambiar la contraseña. Reinicia el proceso de recuperación.'
         }));
         return false;
       }
 
-      // 2. Actualizar la contraseña en Supabase Auth
-      // NOTA: Esta operación requiere privilegios de administrador
-      // En una implementación real, esto se haría desde el backend
-      const { error: passwordError } = await supabase.auth.admin.updateUserById(
-        userData.id,
-        { password: newPassword }
-      );
+      // Usar la función RPC para cambiar la contraseña
+      const { data: passwordResult, error: passwordError } = await supabase
+        .rpc('change_password_with_verification', {
+          user_email: recoveryState.email.toLowerCase().trim(),
+          new_password: newPassword,
+          verified_answers: recoveryState.verifiedAnswers
+        });
 
-      if (passwordError) {
-        // Si falla la actualización admin, intentar con el método regular
-        // pero requerirá que el usuario esté autenticado
-        console.warn('Admin update failed, this is expected in client-side:', passwordError.message);
-        
+      if (passwordError || !passwordResult) {
         setRecoveryState(prev => ({
           ...prev,
           loading: false,
-          step: 'success'
+          error: 'Error al cambiar la contraseña. Por favor, inténtalo de nuevo.'
         }));
-        
-        return true;
+        return false;
       }
 
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        step: 'success'
+        currentStep: 'success'
       }));
 
       return true;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error changing password:', error);
       setRecoveryState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al cambiar contraseña'
+        error: 'Error al cambiar contraseña'
       }));
       return false;
     }
-  }, [recoveryState.email]);
+  }, [recoveryState.email, recoveryState.verifiedAnswers]);
 
   // Resetear estado
   const resetRecovery = useCallback(() => {
     setRecoveryState({
       loading: false,
       error: null,
-      step: 'email',
+      currentStep: 'email',
       email: '',
-      questions: [],
-      token: null
+      securityQuestions: [],
+      isVerified: false,
+      userData: null,
+      verifiedAnswers: undefined
     });
   }, []);
 
