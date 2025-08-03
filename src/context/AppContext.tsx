@@ -38,6 +38,9 @@ interface SupabaseIncident {
   impacto: string | null;
   etiquetas: string | null;
   creado_en: string;
+  actualizado_en: string;
+  resuelto_en: string | null;
+  reportado_por: string;
 }
 
 interface AppContextType {
@@ -155,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadIncidentsFromSupabase = async () => {
     try {
       const { data, error } = await supabase
-        .from('incidents_reporte_incidente')
+        .from('incidents')
         .select('*')
         .order('creado_en', { ascending: false });
 
@@ -173,9 +176,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         severity: item.severidad as Severity,
         status: mapEstadoToStatus(item.estado),
         assignedTo: item.asignado_a || '',
-        reportedBy: '1', // Por defecto
+        reportedBy: item.reportado_por,
         createdAt: new Date(item.creado_en),
-        updatedAt: new Date(item.creado_en),
+        updatedAt: new Date(item.actualizado_en || item.creado_en),
+        resolvedAt: item.resuelto_en ? new Date(item.resuelto_en) : undefined,
         tags: item.etiquetas ? item.etiquetas.split(',').filter(Boolean) : [],
         affectedSystems: item.sistemas_afectados ? item.sistemas_afectados.split(',').filter(Boolean) : [],
         impact: item.impacto || ''
@@ -252,12 +256,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         descripcion: incident.description,
         impacto: incident.impact,
         etiquetas: incident.tags.join(','),
-        creado_en: incident.createdAt.toISOString()
+        creado_en: incident.createdAt.toISOString(),
+        actualizado_en: incident.updatedAt.toISOString(),
+        reportado_por: incident.reportedBy
       };
 
       // Insertar en Supabase
       const { data, error } = await supabase
-        .from('incidents_reporte_incidente')
+        .from('incidents')
         .insert([incidentData])
         .select();
 
@@ -291,15 +297,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       // Preparar los datos para Supabase si incluye el estado
       if (updates.status) {
-        const updateData: { estado?: string } = {};
+        const updateData: { estado?: string; actualizado_en?: string } = {};
         
         if (updates.status) {
           updateData.estado = mapStatusToEstado(updates.status);
         }
         
+        // Siempre actualizar el timestamp
+        updateData.actualizado_en = new Date().toISOString();
+        
         // Actualizar en Supabase
         const { error } = await supabase
-          .from('incidents_reporte_incidente')
+          .from('incidents')
           .update(updateData)
           .eq('id', id);
 
