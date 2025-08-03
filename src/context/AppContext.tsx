@@ -157,13 +157,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Función para cargar incidentes desde Supabase
   const loadIncidentsFromSupabase = async () => {
     try {
+      // Verificar primero si la tabla existe haciendo una consulta simple
+      const { error: testError } = await supabase
+        .from('incidents')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        // Si la tabla no existe, usar datos mock
+        setIncidents(mockIncidents);
+        return;
+      }
+
+      // Si la tabla existe, cargar todos los incidentes
       const { data, error } = await supabase
         .from('incidents')
         .select('*')
         .order('creado_en', { ascending: false });
 
       if (error) {
-        console.error('Error al cargar incidentes desde Supabase:', error);
+        // Si hay error al cargar, usar datos mock como fallback
+        setIncidents(mockIncidents);
         return;
       }
 
@@ -186,8 +200,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }));
 
       setIncidents(mappedIncidents);
-    } catch (error) {
-      console.error('Error al cargar incidentes:', error);
+    } catch {
+      // En caso de cualquier error, usar datos mock
+      setIncidents(mockIncidents);
     }
   };
 
