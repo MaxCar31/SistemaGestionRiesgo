@@ -65,8 +65,12 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
             
             return (
               <li key={item.id}>
-                <button
-                  onClick={() => onViewChange(item.id)}
+                <a
+                  href={`/${item.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onViewChange(item.id);
+                  }}
                   className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive
                       ? 'bg-blue-600 text-white'
@@ -75,7 +79,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 >
                   <Icon className="w-5 h-5 mr-3" />
                   {item.label}
-                </button>
+                </a>
               </li>
             );
           })}
