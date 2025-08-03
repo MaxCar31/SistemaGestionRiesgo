@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
 import LoginForm from './components/Auth/LoginForm';
+import SecurityQuestionsSetup from './components/Auth/SecurityQuestionsSetup';
 import Header from './components/Layout/Header';
 import Sidebar from './components/Layout/Sidebar';
 import DashboardView from './components/Dashboard/DashboardView';
@@ -80,21 +82,141 @@ function AppContent() {
 }
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const [needsSecuritySetup, setNeedsSecuritySetup] = useState<boolean | null>(null);
+
+  // Función para forzar logout
+  const handleForceLogout = async () => {
+    console.log('🚪 Forzando logout...');
+    await signOut();
+    setNeedsSecuritySetup(null);
+    window.location.reload();
+  };
+
+  // Verificar preguntas de seguridad cuando el usuario se loguea
+  useEffect(() => {
+    console.log('🔄 useEffect ejecutado - User:', !!user, 'Loading:', loading, 'NeedsSetup:', needsSecuritySetup);
+    
+    // Si está cargando, no hacer nada
+    if (loading) {
+      console.log('⏳ Esperando que termine de cargar...');
+      return;
+    }
+
+    // Si no hay usuario, resetear estado
+    if (!user) {
+      console.log('👤 No hay usuario logueado');
+      if (needsSecuritySetup !== null) {
+        setNeedsSecuritySetup(null);
+      }
+      return;
+    }
+
+    // Si ya hemos determinado el estado, no volver a verificar
+    if (needsSecuritySetup !== null) {
+      console.log('ℹ️  Estado ya determinado:', needsSecuritySetup);
+      return;
+    }
+
+    // Verificar preguntas de seguridad
+    async function checkSecurityQuestions() {
+      if (!user?.id) return;
+      
+      console.log('🔍 Verificando preguntas de seguridad para usuario:', user.id);
+
+      try {
+        const { data: userAnswers, error } = await supabase
+          .from('user_security_answers')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (error) {
+          console.error('Error al verificar preguntas:', error);
+          setNeedsSecuritySetup(false);
+          return;
+        }
+
+        console.log('📊 Preguntas encontradas:', userAnswers?.length || 0);
+
+        if (!userAnswers || userAnswers.length === 0) {
+          console.log('🎯 Usuario necesita configurar preguntas de seguridad');
+          setNeedsSecuritySetup(true);
+        } else {
+          console.log('✅ Usuario ya tiene preguntas configuradas');
+          setNeedsSecuritySetup(false);
+        }
+      } catch (error) {
+        console.error('Error al verificar preguntas:', error);
+        setNeedsSecuritySetup(false);
+      }
+    }
+
+    checkSecurityQuestions();
+  }, [user, loading, needsSecuritySetup]);
+
+  // Manejar cuando se completa el setup de preguntas
+  const handleSecuritySetupComplete = () => {
+    console.log('✅ Setup de preguntas completado');
+    setNeedsSecuritySetup(false);
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando aplicación...</p>
+          <p className="text-gray-600 mb-4">Cargando aplicación...</p>
         </div>
       </div>
     );
   }
 
   if (!user) {
-    return <LoginForm onSuccess={() => window.location.reload()} />;
+    return <LoginForm onSuccess={() => {
+      console.log('✅ Login exitoso, recargando para verificar preguntas...');
+      window.location.reload();
+    }} />;
+  }
+
+  if (needsSecuritySetup === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 mb-4">Verificando configuración...</p>
+          
+          {user && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500">Usuario: {user.email}</p>
+              <button
+                onClick={handleForceLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm onSuccess={() => {
+      console.log('✅ Login exitoso, recargando para verificar preguntas...');
+      window.location.reload();
+    }} />;
+  }
+
+  if (needsSecuritySetup) {
+    return (
+      <SecurityQuestionsSetup 
+        onComplete={handleSecuritySetupComplete}
+        title="Configurar Preguntas de Seguridad"
+        isRequired={true}
+      />
+    );
   }
 
   return (

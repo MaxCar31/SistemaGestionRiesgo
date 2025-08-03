@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import PasswordRecovery from './PasswordRecovery';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentView, setCurrentView] = useState<'login' | 'recovery'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -47,11 +49,12 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
         if (error) throw error;
         
-        setError('Cuenta creada exitosamente. Revisa tu email para confirmar tu cuenta.');
-        setIsLogin(true);
+        // Para testing: Siempre ir al setup de preguntas después del registro
+        onSuccess();
       }
-    } catch (error: any) {
-      setError(error.message || 'Ha ocurrido un error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Ha ocurrido un error';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -61,6 +64,24 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  // Handlers para cambiar vistas
+  const handleShowPasswordRecovery = () => {
+    setCurrentView('recovery');
+  };
+
+  const handleBackToLogin = () => {
+    setCurrentView('login');
+    setError('');
+  };
+
+  // Renderizar diferentes vistas según el estado
+  console.log('🖥️ Renderizando vista:', currentView);
+  
+  if (currentView === 'recovery') {
+    console.log('📱 Mostrando PasswordRecovery');
+    return <PasswordRecovery onBackToLogin={handleBackToLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
@@ -201,7 +222,11 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
           {isLogin && (
             <div className="mt-4 text-center">
-              <button className="text-sm text-gray-600 hover:text-gray-800 transition-colors">
+              <button 
+                type="button"
+                onClick={handleShowPasswordRecovery}
+                className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
                 ¿Olvidaste tu contraseña?
               </button>
             </div>
