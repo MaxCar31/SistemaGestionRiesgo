@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
-import useSecurityQuestionsDebug from '../../hooks/useSecurityQuestionsDebug';
+import useSecurityQuestionsUsers from '../../hooks/useSecurityQuestionsUsers';
 import { SecurityAnswerInput } from '../../types/security';
 
 interface SecurityQuestionsSetupProps {
@@ -22,7 +22,7 @@ export default function SecurityQuestionsSetup({
     error, 
     setupAnswers, 
     hasSetupQuestions 
-  } = useSecurityQuestionsDebug();
+  } = useSecurityQuestionsUsers();
 
   const [selectedAnswers, setSelectedAnswers] = useState<SecurityAnswerInput[]>([
     { question_id: 0, answer: '' },

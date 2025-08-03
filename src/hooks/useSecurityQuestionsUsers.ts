@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { SecurityQuestion, SecurityAnswerInput } from '../types/security';
 import { useAuth } from './useAuth';
@@ -9,7 +9,7 @@ interface SetupState {
   hasSetupQuestions: boolean;
 }
 
-export default function useSecurityQuestionsDebug() {
+export default function useSecurityQuestionsUsers() {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<SecurityQuestion[]>([]);
   const [state, setState] = useState<SetupState>({
@@ -25,23 +25,11 @@ export default function useSecurityQuestionsDebug() {
     console.log('🔍 Debug - User Email:', user?.email);
   }, [user]);
 
-  // Cargar preguntas disponibles
-  useEffect(() => {
-    loadQuestions();
-    if (user) {
-      checkIfUserHasQuestions();
-    }
-  }, [user]);
-
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     try {
-      console.log('🔍 Debug - Cargando preguntas...');
+      console.log('🔍 Debug - Cargando preguntas usando RPC...');
       
-      const { data, error } = await supabase
-        .from('security_questions')
-        .select('*')
-        .eq('is_active', true)
-        .order('id');
+      const { data, error } = await supabase.rpc('get_security_questions');
 
       if (error) {
         console.error('❌ Error cargando preguntas:', error);
@@ -50,35 +38,34 @@ export default function useSecurityQuestionsDebug() {
 
       console.log('✅ Preguntas cargadas:', data?.length);
       setQuestions(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading questions:', error);
       setState(prev => ({ 
         ...prev, 
         error: 'Error al cargar las preguntas de seguridad' 
       }));
     }
-  };
+  }, []);
 
-  const checkIfUserHasQuestions = async () => {
+  const checkIfUserHasQuestions = useCallback(async () => {
     if (!user) return;
 
     try {
       setState(prev => ({ ...prev, loading: true }));
 
-      const { data, error } = await supabase
-        .from('user_security_answers')
-        .select('question_id')
-        .eq('user_id', user.id)
-        .limit(1);
+      const { data, error } = await supabase.rpc(
+        'check_user_answers_exist',
+        { p_user_id: user.id }
+      );
 
       if (error) throw error;
 
       setState(prev => ({
         ...prev,
         loading: false,
-        hasSetupQuestions: (data && data.length > 0)
+        hasSetupQuestions: data === true
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error checking user questions:', error);
       setState(prev => ({
         ...prev,
@@ -86,7 +73,15 @@ export default function useSecurityQuestionsDebug() {
         error: 'Error al verificar las preguntas de seguridad'
       }));
     }
-  };
+  }, [user]);
+
+  // Cargar preguntas disponibles
+  useEffect(() => {
+    loadQuestions();
+    if (user) {
+      checkIfUserHasQuestions();
+    }
+  }, [user, loadQuestions, checkIfUserHasQuestions]);
 
   const setupAnswers = async (answers: SecurityAnswerInput[]): Promise<boolean> => {
     console.log('🔍 Debug - setupAnswers llamado con:', answers);
@@ -102,23 +97,23 @@ export default function useSecurityQuestionsDebug() {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
-      // Convertir array de respuestas a objeto JSON para la función RPC
-      const answersObject: Record<string, string> = {};
-      answers.forEach(answer => {
-        answersObject[answer.question_id.toString()] = answer.answer;
-      });
+      // Convertir array de respuestas al formato que espera la función RPC
+      const answersForRpc = answers.map(answer => ({
+        question_id: answer.question_id,
+        answer_hash: answer.answer // La función RPC se encargará del hashing
+      }));
 
-      console.log('🔍 Debug - Objeto de respuestas para RPC:', answersObject);
+      console.log('🔍 Debug - Respuestas para RPC:', answersForRpc);
       console.log('🔍 Debug - User ID para RPC:', user.id);
 
-      // 🔥 USAR LA FUNCIÓN RPC QUE HASHEA AUTOMÁTICAMENTE
-      console.log('🔍 Debug - Llamando a save_user_security_answers_hashed...');
+      // Usar la función RPC del esquema public que creamos
+      console.log('🔍 Debug - Llamando a save_user_security_answers...');
       
       const { data, error } = await supabase.rpc(
-        'save_user_security_answers_hashed',
+        'save_user_security_answers',
         {
           p_user_id: user.id,
-          p_answers: answersObject
+          p_answers: answersForRpc
         }
       );
 
@@ -136,17 +131,12 @@ export default function useSecurityQuestionsDebug() {
         throw new Error(`Error RPC: ${error.message} (${error.code})`);
       }
 
-      if (data === false) {
-        console.error('❌ RPC retornó FALSE - revisar logs de Supabase');
-        throw new Error('La función RPC falló al guardar. Revisar logs en Supabase Dashboard.');
+      if (!data || !data.success) {
+        console.error('❌ RPC falló:', data);
+        throw new Error(data?.message || 'Error al guardar las respuestas de seguridad');
       }
 
-      if (!data) {
-        console.error('❌ RPC retornó null/undefined:', data);
-        throw new Error('No se pudieron guardar las respuestas de seguridad - respuesta vacía');
-      }
-
-      console.log('✅ Respuestas de seguridad guardadas y hasheadas correctamente');
+      console.log('✅ Respuestas de seguridad guardadas correctamente');
 
       setState(prev => ({
         ...prev,
@@ -155,17 +145,17 @@ export default function useSecurityQuestionsDebug() {
       }));
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       console.error('❌ Error completo en setupAnswers:', {
-        message: error.message,
-        stack: error.stack,
-        supabaseError: error
+        message: errorMessage,
+        error: error
       });
       
       setState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al configurar las preguntas de seguridad'
+        error: errorMessage || 'Error al configurar las preguntas de seguridad'
       }));
       return false;
     }

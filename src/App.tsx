@@ -125,11 +125,11 @@ function App() {
       console.log('🔍 Verificando preguntas de seguridad para usuario:', user.id);
 
       try {
-        const { data: userAnswers, error } = await supabase
-          .from('user_security_answers')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
+        // Usar función RPC para verificar si el usuario tiene respuestas configuradas
+        const { data: hasAnswers, error } = await supabase.rpc(
+          'check_user_has_security_answers',
+          { p_user_id: user.id }
+        );
 
         if (error) {
           console.error('Error al verificar preguntas:', error);
@@ -137,9 +137,9 @@ function App() {
           return;
         }
 
-        console.log('📊 Preguntas encontradas:', userAnswers?.length || 0);
+        console.log('📊 Usuario tiene preguntas configuradas:', hasAnswers);
 
-        if (!userAnswers || userAnswers.length === 0) {
+        if (!hasAnswers) {
           console.log('🎯 Usuario necesita configurar preguntas de seguridad');
           setNeedsSecuritySetup(true);
         } else {
@@ -153,7 +153,7 @@ function App() {
     }
 
     checkSecurityQuestions();
-  }, [user, loading, needsSecuritySetup]);
+  }, [user, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Manejar cuando se completa el setup de preguntas
   const handleSecuritySetupComplete = () => {
