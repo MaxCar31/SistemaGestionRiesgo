@@ -1,28 +1,27 @@
 export interface Role {
   id: string;
   name: string;
-  description?: string;
-  permissions: string[];
+  description: string | null;
+  permissions: JSON | null;
+  created_at: string | null;
+  updated_at: string | null;
+
 }
 
-export interface UserRole {
-  user_id: string;
-  role_id: string;
-  assigned_at: Date;
-  assigned_by: string;
-}
+export type RoleName = 'analista' | 'admin' | 'supervisor'
+
 
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'analyst' | 'viewer';
-  department: string;
-  roles?: Role[];
-  is_active?: boolean;
-  auth_created_at?: Date;
-  created_at?: Date;
-  updated_at?: Date;
+  id: string | null;
+  name: string | null;
+  department: string | null;
+  is_active: boolean | null;
+  email: string | null;
+  auth_created_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  roles: RoleName[] | null;         
+  permissions: JSON[] | null;  
 }
 
 export interface Incident {

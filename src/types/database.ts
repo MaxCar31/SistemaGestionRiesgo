@@ -10,7 +10,6 @@ export type Json =
 export type Database = {
   // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
   }
@@ -18,52 +17,55 @@ export type Database = {
     Tables: {
       incidents: {
         Row: {
-          actualizado_en: string | null
-          asignado_a: string | null
-          creado_en: string | null
-          descripcion: string
-          estado: string
-          etiquetas: string | null
+          affectedsystems: string[]
+          assignedto: string
+          createdat: string
+          description: string
           id: string
-          impacto: string | null
-          reportado_por: string | null
-          resuelto_en: string | null
-          severidad: string
-          sistemas_afectados: string | null
-          tipo: string
-          titulo: string
+          impact: string
+          reportedby: string
+          resolution: string | null
+          resolvedat: string | null
+          severity: string
+          status: string
+          tags: string[]
+          title: string
+          type: string
+          updatedat: string
         }
         Insert: {
-          actualizado_en?: string | null
-          asignado_a?: string | null
-          creado_en?: string | null
-          descripcion: string
-          estado: string
-          etiquetas?: string | null
+          affectedsystems?: string[]
+          assignedto?: string
+          createdat?: string
+          description: string
           id: string
-          impacto?: string | null
-          reportado_por?: string | null
-          resuelto_en?: string | null
-          severidad: string
-          sistemas_afectados?: string | null
-          tipo: string
-          titulo: string
+          impact?: string
+          reportedby?: string
+          resolution?: string | null
+          resolvedat?: string | null
+          severity: string
+          status: string
+          tags?: string[]
+          title: string
+          type: string
+          updatedat?: string
         }
         Update: {
-          actualizado_en?: string | null
-          asignado_a?: string | null
-          creado_en?: string | null
-          descripcion?: string
-          estado?: string
-          etiquetas?: string | null
+          affectedsystems?: string[]
+          assignedto?: string
+          createdat?: string
+          description?: string
           id?: string
-          impacto?: string | null
-          reportado_por?: string | null
-          resuelto_en?: string | null
-          severidad?: string
-          sistemas_afectados?: string | null
-          tipo?: string
-          titulo?: string
+          impact?: string
+          reportedby?: string
+          resolution?: string | null
+          resolvedat?: string | null
+          severity?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          type?: string
+          updatedat?: string
         }
         Relationships: []
       }
@@ -83,7 +85,33 @@ export type Database = {
   }
   logs: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          details: string
+          id: string
+          incident_id: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          details: string
+          id?: string
+          incident_id: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          details?: string
+          id?: string
+          incident_id?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -106,6 +134,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      change_password_simple_debug: {
+        Args: { user_email: string; new_password: string }
+        Returns: string
+      }
+      change_password_with_verification: {
+        Args: {
+          user_email: string
+          new_password: string
+          verified_answers: Json
+        }
+        Returns: boolean
+      }
+      check_user_answers_exist: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       check_user_has_security_answers: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -113,6 +157,27 @@ export type Database = {
       cleanup_expired_recovery_attempts: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_security_questions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: number
+          question_text: string
+          is_active: boolean
+          created_at: string
+        }[]
+      }
+      get_user_security_questions_by_email: {
+        Args: { user_email: string }
+        Returns: {
+          question_id: number
+          question_text: string
+          category: string
+        }[]
+      }
+      save_user_security_answers: {
+        Args: { p_user_id: string; p_answers: Json }
+        Returns: Json
       }
       update_user_profile: {
         Args: { user_id: string; user_name: string; user_department: string }
@@ -124,6 +189,10 @@ export type Database = {
       }
       verify_security_answer: {
         Args: { stored_hash: string; provided_answer: string }
+        Returns: boolean
+      }
+      verify_security_answers_by_email: {
+        Args: { user_email: string; provided_answers: Json }
         Returns: boolean
       }
     }
@@ -380,9 +449,21 @@ export type Database = {
       change_password_with_verification: {
         Args: {
           user_email: string
+          security_answers: Json
           new_password: string
-          verified_answers: Json
         }
+        Returns: boolean
+      }
+      change_password_with_verification_argon2: {
+        Args: {
+          user_email: string
+          security_answers: Json
+          new_password: string
+        }
+        Returns: boolean
+      }
+      check_user_answers_exist: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
       check_user_has_security_answers: {
@@ -401,6 +482,14 @@ export type Database = {
         Args: { p_user_id: string; p_answers: Json }
         Returns: Json
       }
+      get_security_questions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: number
+          question_text: string
+          category: string
+        }[]
+      }
       get_user_permissions: {
         Args: { user_uuid: string }
         Returns: Json
@@ -417,13 +506,17 @@ export type Database = {
         Args: { user_uuid: string; permission_path: string }
         Returns: boolean
       }
-      hash_security_answer: {
-        Args: { answer_text: string }
+      hash_security_answer_argon2: {
+        Args: { p_answer: string }
         Returns: string
       }
       hash_security_answer_v2: {
         Args: { answer_text: string }
         Returns: string
+      }
+      save_user_security_answers_argon2: {
+        Args: { p_user_id: string; p_answers: Json }
+        Returns: boolean
       }
       save_user_security_answers_hashed: {
         Args: { p_user_id: string; p_answers: Json }
@@ -437,7 +530,15 @@ export type Database = {
         Args: { p_user_id: string; p_question_id: number; p_answer: string }
         Returns: boolean
       }
+      verify_security_answer_argon2: {
+        Args: { p_answer: string; p_hash: string }
+        Returns: boolean
+      }
       verify_security_answers_by_email: {
+        Args: { user_email: string; provided_answers: Json }
+        Returns: boolean
+      }
+      verify_security_answers_by_email_argon2: {
         Args: { user_email: string; provided_answers: Json }
         Returns: boolean
       }
@@ -452,7 +553,8 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "incidents">]
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
