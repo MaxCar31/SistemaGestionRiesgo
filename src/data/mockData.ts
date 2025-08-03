@@ -1,73 +1,53 @@
-import { User, Incident, AuditLog, IncidentType, Severity, Status } from '../types';
+import { User, Incident, AuditLog, IncidentType, Severity, Status, RoleName, RolePermissions } from '../types';
 
 export const mockUsers: User[] = [
   {
     id: '1',
     name: 'Ana García',
     email: 'ana.garcia@empresa.com',
-    role: 'admin',
-    department: 'Seguridad IT'
+    roles: ['admin'],
+    permissions: [{ all: true }],
+    department: 'Seguridad IT',
+    is_active: true,
+    auth_created_at: '2023-12-01T10:00:00',
+    created_at: '2023-12-01T10:00:00',
+    updated_at: '2024-01-15T08:30:00'
   },
   {
     id: '2',
     name: 'Carlos López',
     email: 'carlos.lopez@empresa.com',
-    role: 'analyst',
-    department: 'Seguridad IT'
+    roles: ['analista'],
+    permissions: [{ incidents: { read: true }, reporte_incidente: { read: true, update_limited: true } }],
+    department: 'Seguridad IT',
+    is_active: true,
+    auth_created_at: '2023-12-05T11:30:00',
+    created_at: '2023-12-05T11:30:00',
+    updated_at: '2024-01-10T09:45:00'
   },
   {
     id: '3',
     name: 'María Rodriguez',
     email: 'maria.rodriguez@empresa.com',
-    role: 'analyst',
-    department: 'Operaciones IT'
+    roles: ['analista'],
+    permissions: [{ incidents: { read: true }, reporte_incidente: { read: true, update_limited: true } }],
+    department: 'Operaciones IT',
+    is_active: true,
+    auth_created_at: '2023-12-10T14:15:00',
+    created_at: '2023-12-10T14:15:00',
+    updated_at: '2024-01-05T16:20:00'
   },
   {
     id: '4',
     name: 'Juan Martínez',
     email: 'juan.martinez@empresa.com',
-    role: 'viewer',
-    department: 'RRHH'
-  }
-];
-
-export const mockIncidents: Incident[] = [
-  
-  {
-
-  },
-
-  {
-    id: 'INC-004',
-    title: 'Vulnerabilidad crítica en servidor web público',
-    description: 'Se identificó una vulnerabilidad de ejecución remota de código en el servidor web principal.',
-    type: 'system_compromise',
-    severity: 'critical',
-    status: 'in_progress',
-    assignedTo: '1',
-    reportedBy: '2',
-    createdAt: new Date('2024-01-12T13:20:00'),
-    updatedAt: new Date('2024-01-14T11:15:00'),
-    tags: ['web_server', 'rce', 'public_facing'],
-    affectedSystems: ['Web Server WEB-01', 'Load Balancer'],
-    impact: 'Exposición crítica de datos y posible compromiso total del servidor'
-  },
-  {
-    id: 'INC-005',
-    title: 'Fuga menor de datos en base de datos de desarrollo',
-    description: 'Se detectó que datos de prueba con información simulada fueron expuestos temporalmente.',
-    type: 'data_breach',
-    severity: 'low',
-    status: 'closed',
-    assignedTo: '3',
-    reportedBy: '1',
-    createdAt: new Date('2024-01-10T14:30:00'),
-    updatedAt: new Date('2024-01-11T10:45:00'),
-    resolvedAt: new Date('2024-01-11T10:45:00'),
-    tags: ['database', 'development', 'minor_breach'],
-    affectedSystems: ['Dev Database DEV-DB-02'],
-    impact: 'Exposición de datos de prueba sin información real de clientes',
-    resolution: 'Acceso restringido, configuración de seguridad reforzada en entorno de desarrollo.'
+    roles: ['supervisor'],
+    permissions: [{ incidents: { read: true }, reporte_incidente: { read: true, create: true, update: true } }],
+    department: 'RRHH',
+    is_active: true,
+    auth_created_at: '2023-12-15T09:00:00',
+    created_at: '2023-12-15T09:00:00',
+    updated_at: '2024-01-20T10:10:00'
   }
 ];
 

@@ -31,23 +31,23 @@
   }
 
 
-  // 4) User enlaza roles y sus permisos tipados
-  export interface User {
-    id: string | null
-    name: string | null
-    department: string | null
-    is_active: boolean | null
-    email: string | null
-    auth_created_at: string | null
-    created_at: string | null
-    updated_at: string | null
+    // 4) User enlaza roles y sus permisos tipados
+    export interface User {
+      id: string | null
+      name: string | null
+      department: string | null
+      is_active: boolean | null
+      email: string | null
+      auth_created_at: string | null
+      created_at: string | null
+      updated_at: string | null
 
-    // sólo estos tres posibles roles
-    roles: RoleName[] | null
+      // sólo estos tres posibles roles
+      roles: RoleName[] | null
 
-    // y aquí sus permisos concretos según cada rol
-    permissions: RolePermissions[] | null
-  }
+      // y aquí sus permisos concretos según cada rol
+      permissions: RolePermissions[] | null
+    }
 
 
   // El resto de tus interfaces sin cambios:
