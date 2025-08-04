@@ -11,7 +11,10 @@ import {
   getSeverityLabel,
   getStatusLabel
 } from '../../utils/helpers';
-import IncidentFormModal from './CreateIncidentModal'; // Importamos el modal de edición
+import IncidentFormModal from './CreateIncidentModal'; 
+
+// Define the RoleName type
+export type RoleName = 'analista' | 'admin' | 'supervisor';
 
 interface IncidentDetailsModalProps {
   incident: Incident;
@@ -28,7 +31,12 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentIncident, setCurrentIncident] = useState<Incident>(incident);
-
+  
+  // Check user permissions based on role
+  const userRole = currentUser?.roles?.[0] as RoleName;
+  const canEdit = userRole === 'admin' || userRole === 'supervisor';
+  const canDelete = userRole === 'admin';
+  
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
     return user?.name || 'Usuario desconocido';
@@ -138,26 +146,30 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
                 </div>
               </div>
               <div className="flex space-x-2">
-                {/* Botón de Editar - Abre el modal de edición */}
-                <button 
-                  onClick={handleEditClick} 
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"
-                >
-                  <Edit2 className="w-4 h-4" /> 
-                </button>
+                {/* Botón de Editar - Solo para admin y supervisor */}
+                {canEdit && (
+                  <button 
+                    onClick={handleEditClick} 
+                    className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"
+                  >
+                    <Edit2 className="w-4 h-4" /> 
+                  </button>
+                )}
                 
-                {/* Botón de Eliminar - Elimina el incidente directamente */}
-                <button 
-                  onClick={handleDeleteClick} 
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? (
-                    <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Trash className="w-5 h-5" />
-                  )}
-                </button>
+                {/* Botón de Eliminar - Solo para admin */}
+                {canDelete && (
+                  <button 
+                    onClick={handleDeleteClick} 
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Trash className="w-5 h-5" />
+                    )}
+                  </button>
+                )}
                 
                 {/* Botón de Cerrar */}
                 <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-100 rounded-md">
