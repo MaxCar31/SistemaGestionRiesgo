@@ -38,7 +38,7 @@ export default function Header() {
               </div>
               <div className="hidden md:block">
                 <p className="text-sm font-medium text-gray-900">{currentUser?.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{currentUser?.role}</p>
+                <p className="text-xs text-gray-500 capitalize">{currentUser?.roles}</p>
               </div>
               
               <div className="flex items-center space-x-1">

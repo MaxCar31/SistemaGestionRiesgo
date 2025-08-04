@@ -4,7 +4,6 @@ import {
   Users, 
   Settings,
   Activity,
-  Shield,
   LucideIcon
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -26,7 +25,6 @@ const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
   { id: 'users', label: 'Usuarios', icon: Users, requiredPermission: 'canManageUsers' },
-  { id: 'roles', label: 'Gestión de Roles', icon: Shield, requiredPermission: 'canManageRoles' },
   { id: 'audit', label: 'Auditoría', icon: Activity, requiredPermission: 'canViewAuditLogs' },
   { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true }
 ];
@@ -37,8 +35,8 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   // Filtrar elementos del menú basado en permisos
   const visibleMenuItems = menuItems.filter(item => {
     if (!currentUser) return false;
-    
-    if (item.adminOnly && currentUser.role !== 'admin') {
+
+    if (item.adminOnly && currentUser?.roles?.[0] !== 'admin') {
       return false;
     }
     

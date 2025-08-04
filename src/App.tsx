@@ -69,7 +69,6 @@ function AppContent() {
             <IncidentsView />
           </ProtectedRoute>
         )
-
       case 'users':
         return (
           <ProtectedRoute requiredRole="admin">
