@@ -206,24 +206,38 @@ export function useIncidents(currentUser: User | null) {
     try {
       console.log('🗑️ Eliminando incidente:', incidentId);
 
-      const { error } = await supabase
-        .schema('incidents')
-        .from('incidents')
-        .delete()
-        .eq('id', incidentId);
+      // Llamar a la función SQL personalizada
+      const { data, error } = await supabase
+        .rpc('delete_incident_safe', { incident_id_param: incidentId });
 
       if (error) {
-        console.error('❌ Error al eliminar incidente de Supabase:', error);
-        throw error;
+        console.error('❌ Error en función SQL:', error);
+        throw new Error(`Error al eliminar incidente: ${error.message}`);
       }
 
-      // Recargar datos desde la base de datos
-      await loadIncidentsFromSupabase();
+      console.log('� Resultado de eliminación:', data);
 
-      console.log('✅ Incidente eliminado exitosamente');
-      return true;
+      if (data?.success) {
+        // Actualizar la lista local sin recargar desde la BD
+        setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
+
+        console.log(`✅ ${data.message}`);
+        console.log(`📝 Título: ${data.incident_title}`);
+        console.log(`🗑️ Comentarios eliminados: ${data.comments_deleted}`);
+
+        return true;
+      } else {
+        console.warn('⚠️ Error:', data?.message || 'Error desconocido');
+        throw new Error(data?.message || 'No se pudo eliminar el incidente');
+      }
+
     } catch (error) {
       console.error('❌ Error al eliminar incidente:', error);
+
+      if (error instanceof Error) {
+        throw new Error(`Error al eliminar incidente: ${error.message}`);
+      }
+
       return false;
     }
   };

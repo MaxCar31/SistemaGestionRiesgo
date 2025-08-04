@@ -54,7 +54,7 @@ export function useAuditLogs() {
     try {
       // Llamar a la función de base de datos para obtener logs descifrados
       const { data: logs, error: logsError } = await supabaseLogs
-        .rpc('get_log_sistema2');
+        .rpc('get_log_sistema');
 
       if (logsError) {
         console.error('Error al cargar logs:', logsError);
