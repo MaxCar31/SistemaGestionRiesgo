@@ -31,6 +31,7 @@ const transformDatabaseLogToAuditLog = (log: DatabaseLog): AuditLog => {
       tipo_log: log.tipo_log,
       operacion: log.operacion,
       entidad: log.entidad,
+      nombre_usuario: log.nombre_usuario, // Agregar nombre_usuario a metadata
       rol_usuario: log.rol_usuario,
       contenido: log.contenido
     }
