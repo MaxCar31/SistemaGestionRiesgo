@@ -66,11 +66,6 @@ export default function IncidentsView() {
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Incidente
           </button>
-          
-          <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </button>
         </div>
       </div>
 
