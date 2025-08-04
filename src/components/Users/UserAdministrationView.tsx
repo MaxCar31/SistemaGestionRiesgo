@@ -32,12 +32,15 @@ interface Role {
 interface ExistingUser {
   id: string;
   name: string;
-  email: string;
+  email?: string; // Puede venir de Auth o de un JOIN, pero no de la tabla usuarios
   department: string;
   is_active: boolean;
   role_name: string;
+  role_id?: string;
   created_at: string;
 }
+
+
 
 export default function UserAdministrationView() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -53,6 +56,92 @@ export default function UserAdministrationView() {
     department: '',
     role: ''
   });
+
+  // Estado y lógica de edición
+  const [editUser, setEditUser] = useState<ExistingUser | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', department: '', role: '', email: '', password: '' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+
+  const handleEditUser = async (user: ExistingUser) => {
+    // Si los roles aún no están cargados, espera y reintenta
+    if (!roles || roles.length === 0) {
+      setTimeout(() => handleEditUser(user), 100);
+      return;
+    }
+    let emailActual = user.email || '';
+    // Buscar email real en Auth si no viene en el objeto user
+    if (!emailActual && user.id) {
+      try {
+        const { data, error } = await supabaseAdmin.auth.admin.getUserById(user.id);
+        if (!error && data && data.user && data.user.email) {
+          emailActual = data.user.email;
+        }
+      } catch (e) {
+        // Si falla, dejar email vacío
+      }
+    }
+    setEditUser(user);
+    setEditForm({
+      name: user.name || '',
+      department: user.department || '',
+      // Buscar el id del rol actual a partir del nombre del rol
+      role: (() => {
+        const found = roles.find(r => r.name === user.role_name);
+        return found ? found.id : '';
+      })(),
+      email: emailActual,
+      password: '' // Nunca mostrar la contraseña actual
+    });
+    setEditMessage(null);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
+    setIsEditing(true);
+    setEditMessage(null);
+    try {
+      // Actualizar usuario en la base de datos usando función RPC
+      const { error } = await supabase.rpc('update_usuario', {
+        p_id: editUser.id,
+        p_name: editForm.name,
+        p_department: editForm.department
+      });
+      if (error) throw error;
+      // Actualizar rol si cambió
+      if (editForm.role && editForm.role !== editUser.role_id) {
+        await supabase.from('users.user_roles').delete().eq('user_id', editUser.id);
+        await supabase.from('users.user_roles').insert({ user_id: editUser.id, role_id: editForm.role });
+      }
+      // Actualizar email y/o contraseña en Supabase Auth (solo si cambiaron)
+      if (editForm.email !== editUser.email || editForm.password) {
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(editUser.id, {
+          email: editForm.email !== editUser.email ? editForm.email : undefined,
+          password: editForm.password ? editForm.password : undefined
+        });
+        if (authError) throw authError;
+      }
+      setEditMessage('Usuario actualizado correctamente.');
+      setEditUser(null);
+      await loadExistingUsers();
+    } catch (err) {
+      setEditMessage('Error al actualizar el usuario.');
+      console.error(err);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+    setEditMessage(null);
+  };
+
+  const closeEditModal = () => {
+    setEditUser(null);
+    setEditMessage(null);
+  };
 
   // Cargar roles y usuarios al montar el componente
   useEffect(() => {
@@ -101,22 +190,27 @@ export default function UserAdministrationView() {
   };
 
   const validateForm = (): boolean => {
-    if (!formData.email || !formData.password || !formData.name || !formData.role) {
+    if (!formData.email || !formData.password || !formData.name) {
       setCreateMessage({ type: 'error', text: 'Todos los campos obligatorios deben ser completados' });
       return false;
     }
-    
+    if (!formData.department || formData.department.trim() === '') {
+      setCreateMessage({ type: 'error', text: 'El campo Departamento es obligatorio y no puede estar vacío.' });
+      return false;
+    }
+    if (!formData.role || formData.role === '') {
+      setCreateMessage({ type: 'error', text: 'Debes seleccionar un rol para el usuario.' });
+      return false;
+    }
     if (formData.password.length < 6) {
       setCreateMessage({ type: 'error', text: 'La contraseña debe tener al menos 6 caracteres' });
       return false;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setCreateMessage({ type: 'error', text: 'El email no tiene un formato válido' });
       return false;
     }
-
     return true;
   };
 
@@ -153,13 +247,14 @@ export default function UserAdministrationView() {
       }
 
       // Paso 1: Crear usuario en Supabase Auth usando la API Admin
+      const departamentoFinal = formData.department.trim();
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
         email_confirm: true,
         user_metadata: {
           name: formData.name,
-          department: formData.department || 'General'
+          department: departamentoFinal
         }
       });
 
@@ -171,15 +266,20 @@ export default function UserAdministrationView() {
 
       // Paso 2: Crear el perfil usando función RPC que sabemos que funciona
       console.log('🔄 Creando perfil usando función RPC...');
-      
+      console.log('🟦 Valor de assigned_role enviado:', formData.role);
+      console.log('🟢 Enviando a create_user_profile_v2:', {
+        auth_user_id: authUser.user.id,
+        user_name: formData.name,
+        user_department: departamentoFinal,
+        assigned_role: formData.role
+      });
       const { data: profileResult, error: profileError } = await supabase
         .rpc('create_user_profile_v2', {
           auth_user_id: authUser.user.id,
           user_name: formData.name,
-          user_department: formData.department || 'General',
+          user_department: departamentoFinal,
           assigned_role: formData.role
         });
-
       console.log('📋 Resultado del perfil:', profileResult, 'Error:', profileError);
 
       if (profileError) {
@@ -269,6 +369,38 @@ Revisa la configuración e intenta nuevamente.`);
     });
     setCreateMessage(null);
     setShowCreateForm(false);
+  };
+
+  // Desactivar o activar usuario
+  // Eliminar usuario (borrado lógico)
+  const handleDeleteUser = async (user: ExistingUser) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar al usuario ${user.name}? Esta acción es reversible solo por un administrador.`)) return;
+    try {
+      const { error } = await supabase.rpc('admin_delete_user', { user_id: user.id });
+      if (error) throw error;
+      await loadExistingUsers();
+    } catch (err) {
+      alert('Error al eliminar el usuario.');
+      console.error(err);
+    }
+  };
+  const handleToggleActive = async (user: ExistingUser) => {
+    if (!window.confirm(`¿Seguro que deseas ${user.is_active ? 'desactivar' : 'activar'} al usuario ${user.name}?`)) return;
+    try {
+      if (user.is_active) {
+        // Desactivar usuario usando función RPC
+        const { error } = await supabase.rpc('admin_deactivate_user', { user_id: user.id });
+        if (error) throw error;
+      } else {
+        // Activar usuario usando función RPC
+        const { error } = await supabase.rpc('admin_activate_user', { user_id: user.id });
+        if (error) throw error;
+      }
+      await loadExistingUsers();
+    } catch (err) {
+      alert('Error al cambiar el estado del usuario.');
+      console.error(err);
+    }
   };
 
   return (
@@ -372,16 +504,17 @@ Revisa la configuración e intenta nuevamente.`);
 
               {/* Departamento */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Departamento
-                </label>
-                <input
-                  type="text"
-                  value={formData.department}
-                  onChange={(e) => handleInputChange('department', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="IT, Seguridad, etc."
-                />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Departamento *
+              </label>
+              <input
+                type="text"
+                value={formData.department}
+                onChange={(e) => handleInputChange('department', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="IT, Seguridad, etc."
+                required
+              />
               </div>
 
               {/* Rol */}
@@ -468,7 +601,8 @@ Revisa la configuración e intenta nuevamente.`);
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Departamento</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Rol</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Estado</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Creado</th>
+                 <th className="text-left py-3 px-4 font-medium text-gray-900">Creado</th>
+                 <th className="text-left py-3 px-4 font-medium text-gray-900">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -500,6 +634,113 @@ Revisa la configuración e intenta nuevamente.`);
                     </td>
                     <td className="py-3 px-4 text-gray-600 text-sm">
                       {new Date(user.created_at).toLocaleDateString('es-ES')}
+                    </td>
+                    {/* Acciones */}
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        {/* Botón Editar */}
+                        <button
+                          title="Editar usuario"
+                          className="p-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-700"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3zm0 0v3a2 2 0 002 2h3" /></svg>
+                        </button>
+      {/* Modal de edición de usuario */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
+
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
+            <button onClick={closeEditModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-semibold mb-6">Editar Usuario</h2>
+            <form onSubmit={handleSaveEdit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => handleEditInputChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                <input
+                  type="text"
+                  value={editForm.department}
+                  onChange={e => handleEditInputChange('department', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                <select
+                  value={editForm.role}
+                  onChange={e => handleEditInputChange('role', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Seleccionar rol...</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>{role.name} - {role.description}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email (solo Auth)</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={e => handleEditInputChange('email', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña (dejar vacío para no cambiar)</label>
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={e => handleEditInputChange('password', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  minLength={6}
+                  placeholder="Nueva contraseña"
+                />
+              </div>
+              {editMessage && <div className="text-sm text-red-600">{editMessage}</div>}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={closeEditModal} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancelar</button>
+                <button type="submit" disabled={isEditing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{isEditing ? 'Guardando...' : 'Guardar Cambios'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+                        {/* Botón Activar/Desactivar */}
+                        <button
+                          title={user.is_active ? "Desactivar usuario" : "Activar usuario"}
+                          className={`p-2 rounded-lg ${user.is_active ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}`}
+                        onClick={() => handleToggleActive(user)}
+                        
+                        >
+                          {user.is_active ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-1.414 1.414A9 9 0 105.636 18.364l1.414-1.414" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          )}
+                        </button>
+                        {/* Botón Eliminar */}
+                        <button
+                          title="Eliminar usuario"
+                          className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700"
+                        onClick={() => handleDeleteUser(user)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
