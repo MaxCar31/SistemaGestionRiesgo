@@ -10,6 +10,7 @@ interface CreateIncidentModalProps {
 
 export default function CreateIncidentModal({ onClose }: CreateIncidentModalProps) {
   const { users, addIncident, currentUser } = useApp();
+  console.log('Current User:', users);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -23,6 +24,7 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     
     const newIncident: Incident = {
       id: generateIncidentId(),

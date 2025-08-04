@@ -4,7 +4,9 @@ import { mockUsers } from '../../data/mockData';
 import { supabase } from '../../lib/supabase';
 
 export function useUsers() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+
+  console.log('Current Users:', users);
 
   // Función para cargar usuarios desde Supabase
   const loadUsersFromSupabase = async () => {

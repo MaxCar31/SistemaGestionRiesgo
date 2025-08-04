@@ -11,7 +11,6 @@ import Sidebar from './components/Layout/Sidebar'
 import DashboardView from './components/Dashboard/DashboardView'
 import IncidentsView from './components/Incidents/IncidentsView'
 import UsersView from './components/Users/UsersView'
-import RoleManagementView from './components/Users/RoleManagementView'
 import AuditView from './components/Audit/AuditView'
 
 const viewMap: Record<string, string> = {
@@ -66,7 +65,7 @@ function AppContent() {
 
       case 'incidents':
         return (
-          <ProtectedRoute requiredPermission="admin1">
+          <ProtectedRoute requiredPermission="admin">
             <IncidentsView />
           </ProtectedRoute>
         )
@@ -75,13 +74,6 @@ function AppContent() {
         return (
           <ProtectedRoute requiredRole="admin">
             <UsersView />
-          </ProtectedRoute>
-        )
-
-      case 'roles':
-        return (
-          <ProtectedRoute requiredRole="admin">
-            <RoleManagementView />
           </ProtectedRoute>
         )
 
