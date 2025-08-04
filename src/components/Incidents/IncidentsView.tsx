@@ -57,17 +57,6 @@ export default function IncidentsView() {
               <LayoutGrid className="w-4 h-4 mr-2" />
               Kanban
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <List className="w-4 h-4 mr-2" />
-              Lista
-            </button>
           </div>
           
           <button
