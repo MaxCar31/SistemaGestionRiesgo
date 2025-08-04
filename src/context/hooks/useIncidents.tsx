@@ -175,11 +175,104 @@ export function useIncidents(currentUser: User | null) {
     }
   };
 
+  // Nueva función para editar un incidente completo
+  const editIncident = async (incidentId: string, updatedIncident: Incident) => {
+    try {
+      // Preparar los datos para Supabase
+      const incidentData = {
+        title: updatedIncident.title,
+        type: updatedIncident.type,
+        severity: updatedIncident.severity,
+        status: updatedIncident.status,
+        assignedto: updatedIncident.assignedTo || '',
+        affectedsystems: updatedIncident.affectedSystems,
+        description: updatedIncident.description,
+        impact: updatedIncident.impact,
+        tags: updatedIncident.tags,
+        updatedat: new Date().toISOString(),
+        reportedby: updatedIncident.reportedBy,
+        resolvedat: updatedIncident.resolvedAt?.toISOString() || null,
+        resolution: updatedIncident.resolution || null
+      };
+
+      // Actualizar en Supabase
+      const { error } = await supabase
+        .from('incidents')
+        .update(incidentData)
+        .eq('id', incidentId);
+
+      if (error) {
+        console.error('Error al actualizar incidente en Supabase:', error);
+        throw error;
+      }
+
+      // Actualizar el estado local
+      setIncidents(prev => prev.map(incident => 
+        incident.id === incidentId ? { ...updatedIncident, updatedAt: new Date() } : incident
+      ));
+      
+      // Add audit log
+      addAuditLog({
+        id: `LOG-${Date.now()}`,
+        incidentId: incidentId,
+        userId: currentUser?.id || '1',
+        action: 'incident_updated',
+        details: `Incidente actualizado: ${updatedIncident.title}`,
+        timestamp: new Date()
+      });
+
+      console.log('Incidente actualizado exitosamente');
+      return true;
+    } catch (error) {
+      console.error('Error al actualizar incidente:', error);
+      alert('Error al actualizar el incidente. Por favor, inténtalo de nuevo.');
+      return false;
+    }
+  };
+
+  // Nueva función para eliminar un incidente
+  const deleteIncident = async (incidentId: string) => {
+    try {
+      // Eliminar de Supabase
+      const { error } = await supabase
+        .from('incidents')
+        .delete()
+        .eq('id', incidentId);
+
+      if (error) {
+        console.error('Error al eliminar incidente de Supabase:', error);
+        throw error;
+      }
+
+      // Actualizar el estado local
+      setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
+      
+      // Add audit log
+      addAuditLog({
+        id: `LOG-${Date.now()}`,
+        incidentId: incidentId,
+        userId: currentUser?.id || '1',
+        action: 'incident_deleted',
+        details: `Incidente eliminado: ID ${incidentId}`,
+        timestamp: new Date()
+      });
+
+      console.log('Incidente eliminado exitosamente');
+      return true;
+    } catch (error) {
+      console.error('Error al eliminar incidente:', error);
+      alert('Error al eliminar el incidente. Por favor, inténtalo de nuevo.');
+      return false;
+    }
+  };
+
   return {
     incidents,
     setIncidents,
     loadIncidentsFromSupabase,
     addIncident,
-    updateIncident
+    updateIncident,
+    editIncident,
+    deleteIncident
   };
 }

@@ -10,6 +10,8 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   addIncident: (incident: Incident) => Promise<void>;
   updateIncident: (id: string, updates: Partial<Incident>) => Promise<void>;
+  editIncident: (incidentId: string, updatedIncident: Incident) => Promise<boolean>;
+  deleteIncident: (incidentId: string) => Promise<boolean>;
   addAuditLog: (log: AuditLog) => void;
   loading: boolean;
   loadUsersFromSupabase: () => Promise<void>;
@@ -22,7 +24,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Usar los hooks individuales
   const { currentUser, setCurrentUser, loading } = useAuth();
   const { users, loadUsersFromSupabase } = useUsers();
-  const { incidents, addIncident, updateIncident } = useIncidents(currentUser);
+  const { incidents, addIncident, updateIncident, editIncident, deleteIncident } = useIncidents(currentUser);
   const { auditLogs, addAuditLog } = useAuditLogs();
   const { hasPermission: checkPermission } = usePermissions();
   
@@ -39,6 +41,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentUser,
       addIncident,
       updateIncident,
+      editIncident,
+      deleteIncident,
       addAuditLog,
       loading,
       loadUsersFromSupabase,
