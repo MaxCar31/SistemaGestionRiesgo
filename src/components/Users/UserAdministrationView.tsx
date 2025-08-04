@@ -1,19 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Users, Mail, User, Shield, Save, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
-
-// Cliente admin para crear usuarios
-const supabaseAdmin = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { supabaseAdmin } from '../../lib/supabase';
+import { User as ExistingUser } from '../../types';
+import { useUsers } from '../../context/hooks/useUsers';
 
 interface CreateUserForm {
   email: string;
@@ -29,23 +19,13 @@ interface Role {
   description: string;
 }
 
-interface ExistingUser {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  is_active: boolean;
-  role_name: string;
-  created_at: string;
-}
-
 export default function UserAdministrationView() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [existingUsers, setExistingUsers] = useState<ExistingUser[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  // Use the hook instead of managing users state directly
+  const { users: existingUsers, loading: isLoadingUsers, loadUsersFromSupabase, error: usersError } = useUsers();
   const [formData, setFormData] = useState<CreateUserForm>({
     email: '',
     password: '',
@@ -57,7 +37,7 @@ export default function UserAdministrationView() {
   // Cargar roles y usuarios al montar el componente
   useEffect(() => {
     loadRoles();
-    loadExistingUsers();
+    // No need to call loadExistingUsers anymore as useUsers does this automatically
   }, []);
 
   const loadRoles = async () => {
@@ -76,24 +56,7 @@ export default function UserAdministrationView() {
     }
   };
 
-  const loadExistingUsers = async () => {
-    setIsLoadingUsers(true);
-    try {
-      console.log('🔄 Cargando usuarios existentes...');
-      const { data, error } = await supabase
-        .rpc('get_all_users');
-
-      console.log('👥 Respuesta de get_all_users - Data:', data, 'Error:', error);
-      
-      if (error) throw error;
-      setExistingUsers(data || []);
-      console.log('✅ Usuarios cargados:', data);
-    } catch (error) {
-      console.error('❌ Error cargando usuarios:', error);
-    } finally {
-      setIsLoadingUsers(false);
-    }
-  };
+  // We can remove the loadExistingUsers function as we're using the hook's loadUsersFromSupabase
 
   const handleInputChange = (field: keyof CreateUserForm, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -229,7 +192,7 @@ export default function UserAdministrationView() {
       setShowCreateForm(false);
       
       // Recargar la lista de usuarios
-      await loadExistingUsers();
+      await loadUsersFromSupabase();
 
     } catch (error) {
       console.error('❌ Error creando usuario:', error);
@@ -270,6 +233,7 @@ Revisa la configuración e intenta nuevamente.`);
     setCreateMessage(null);
     setShowCreateForm(false);
   };
+
 
   return (
     <div className="space-y-6">
@@ -442,12 +406,18 @@ Revisa la configuración e intenta nuevamente.`);
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Usuarios Existentes</h3>
           <button
-            onClick={loadExistingUsers}
+            onClick={loadUsersFromSupabase}
             className="text-blue-600 hover:text-blue-700 text-sm font-medium"
           >
             Actualizar
           </button>
         </div>
+        
+        {usersError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4">
+            {usersError}
+          </div>
+        )}
         
         {isLoadingUsers ? (
           <div className="bg-gray-50 rounded-lg p-8 text-center">
@@ -486,7 +456,7 @@ Revisa la configuración e intenta nuevamente.`);
                     <td className="py-3 px-4 text-gray-600">{user.department || '-'}</td>
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {user.role_name || 'Sin rol'}
+                        {Array.isArray(user.roles) ? user.roles.join(', ') : user.roles}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -499,7 +469,7 @@ Revisa la configuración e intenta nuevamente.`);
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-600 text-sm">
-                      {new Date(user.created_at).toLocaleDateString('es-ES')}
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '-'}
                     </td>
                   </tr>
                 ))}
