@@ -28,6 +28,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { auditLogs, addAuditLog } = useAuditLogs();
   const { hasPermission: checkPermission } = usePermissions();
   
+
+  
   // Función wrapper para comprobar permisos con el usuario currentUser
   const hasPermission = (permission: string): boolean => {
     return checkPermission(permission, currentUser);

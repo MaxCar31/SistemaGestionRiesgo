@@ -41,7 +41,8 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
 
   async function fetchComments() {
     const { data, error } = await supabase
-      .from<IncidentComment>('incidents.incident_comments')
+      .schema('incidents')
+      .from('incident_comments')     
       .select('*')
       .eq('incident_id', incident.id)
       .order('created_at', { ascending: true });
