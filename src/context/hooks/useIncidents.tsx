@@ -101,7 +101,7 @@
           .select();
 
         if (error) {
-          console.error('Error al crear incidente en Supabase:', error);
+         
           throw error;
         }
 
@@ -121,7 +121,7 @@
         console.log('Incidente creado exitosamente:', data);
       } catch (error) {
         console.error('Error al crear incidente:', error);
-        alert('Error al crear el incidente. Por favor, inténtalo de nuevo.');
+
       }
     };
 
@@ -154,7 +154,6 @@
           .eq('id', id);
 
         if (error) {
-          console.error('Error al actualizar incidente en Supabase:', error);
           throw error;
         }
 
@@ -176,7 +175,7 @@
         }
       } catch (error) {
         console.error('Error al actualizar incidente:', error);
-        alert('Error al actualizar el incidente. Por favor, inténtalo de nuevo.');
+    
       }
     };
 
@@ -231,7 +230,7 @@
         return true;
       } catch (error) {
         console.error('Error al actualizar incidente:', error);
-        alert('Error al actualizar el incidente. Por favor, inténtalo de nuevo.');
+     
         return false;
       }
     };
