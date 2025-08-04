@@ -1,10 +1,9 @@
 import { 
   LayoutDashboard, 
   AlertTriangle, 
-  Users, 
-  Settings,
   Activity,
-  LucideIcon
+  LucideIcon,
+  UserPlus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -24,9 +23,8 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
-  { id: 'users', label: 'Usuarios', icon: Users, requiredPermission: 'canManageUsers' },
+  { id: 'user-admin', label: 'Usuarios', icon: UserPlus, adminOnly: true },
   { id: 'audit', label: 'Auditoría', icon: Activity, requiredPermission: 'canViewAuditLogs' },
-  { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true }
 ];
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {

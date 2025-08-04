@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Incident, IncidentType, Severity } from '../../types';
@@ -6,10 +6,13 @@ import { generateIncidentId } from '../../utils/helpers';
 
 interface CreateIncidentModalProps {
   onClose: () => void;
+  onSuccess?: (action: 'create' | 'update', incident: Incident) => void;
+  incidentToEdit?: Incident;
 }
 
-export default function CreateIncidentModal({ onClose }: CreateIncidentModalProps) {
-  const { users, addIncident, currentUser } = useApp();
+export default function CreateIncidentModal({ onClose, onSuccess, incidentToEdit }: CreateIncidentModalProps) {
+  const { users, addIncident, editIncident, currentUser } = useApp();
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -23,47 +26,108 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (incidentToEdit) {
+      setIsEditMode(true);
+      setFormData({
+        title: incidentToEdit.title,
+        description: incidentToEdit.description,
+        type: incidentToEdit.type,
+        severity: incidentToEdit.severity,
+        assignedTo: incidentToEdit.assignedTo || '',
+        affectedSystems: incidentToEdit.affectedSystems.join(', '),
+        impact: incidentToEdit.impact || '',
+        tags: incidentToEdit.tags.join(', ')
+      });
+    } else {
+      setIsEditMode(false);
+      setFormData({
+        title: '',
+        description: '',
+        type: 'other',
+        severity: 'medium',
+        assignedTo: '',
+        affectedSystems: '',
+        impact: '',
+        tags: ''
+      });
+    }
+  }, [incidentToEdit]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      console.log("Creando incidente:", formData);
-      
-      const newIncident: Incident = {
-        id: generateIncidentId(),
-        title: formData.title,
-        description: formData.description,
-        type: formData.type,
-        severity: formData.severity,
-        status: 'open',
-        assignedTo: formData.assignedTo,
-        reportedBy: currentUser?.id || '1',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-        affectedSystems: formData.affectedSystems.split(',').map(system => system.trim()).filter(Boolean),
-        impact: formData.impact
-      };
-      
-      console.log("Objeto de incidente creado:", newIncident);
-      
-      if (typeof addIncident !== 'function') {
-        throw new Error('La función addIncident no está disponible');
-      }
-      
-      await addIncident(newIncident);
-      console.log("Incidente agregado exitosamente");
-      
-      // Forzar un pequeño retraso antes de cerrar
-      setTimeout(() => {
+      if (isEditMode && incidentToEdit) {
+        console.log('🔄 Modo edición activado para:', incidentToEdit.id);
+
+        const updatedIncident: Incident = {
+          ...incidentToEdit,
+          title: formData.title,
+          description: formData.description,
+          type: formData.type,
+          severity: formData.severity,
+          assignedTo: formData.assignedTo,
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          affectedSystems: formData.affectedSystems.split(',').map(system => system.trim()).filter(Boolean),
+          impact: formData.impact,
+          updatedAt: new Date()
+        };
+
+        console.log('📝 Datos del incidente actualizado:', updatedIncident);
+
+        const success = await editIncident(incidentToEdit.id, updatedIncident);
+
+        if (success) {
+          console.log('✅ Incidente actualizado exitosamente');
+
+          // Notificar al componente padre
+          if (onSuccess) {
+            onSuccess('update', updatedIncident);
+          }
+
+          // Cerrar modal
+          onClose();
+        } else {
+          setError('No se pudo actualizar el incidente. Inténtalo de nuevo.');
+        }
+
+      } else {
+        console.log('🆕 Creando nuevo incidente');
+
+        const newIncident: Incident = {
+          id: generateIncidentId(),
+          title: formData.title,
+          description: formData.description,
+          type: formData.type,
+          severity: formData.severity,
+          status: 'open',
+          assignedTo: formData.assignedTo,
+          reportedBy: currentUser?.id || '1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          affectedSystems: formData.affectedSystems.split(',').map(system => system.trim()).filter(Boolean),
+          impact: formData.impact
+        };
+
+        await addIncident(newIncident);
+
+        console.log('✅ Incidente creado exitosamente');
+
+        // Notificar al componente padre
+        if (onSuccess) {
+          onSuccess('create', newIncident);
+        }
+
+        // Cerrar modal
         onClose();
-      }, 100);
-      
+      }
     } catch (error) {
-      console.error('Error al crear el incidente:', error);
-      setError(error instanceof Error ? error.message : 'Ocurrió un error al crear el incidente');
+      console.error('❌ Error en handleSubmit:', error);
+      setError(error instanceof Error ? error.message : 'Ocurrió un error al procesar el incidente');
     } finally {
       setIsSubmitting(false);
     }
@@ -81,14 +145,15 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Crear Nuevo Incidente</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {isEditMode ? 'Editar Incidente' : 'Crear Nuevo Incidente'}
+          </h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -97,7 +162,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-start">
@@ -105,9 +169,8 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               <p>{error}</p>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Título */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Título del Incidente *
@@ -123,7 +186,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               />
             </div>
 
-            {/* Tipo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tipo de Incidente *
@@ -148,7 +210,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               </select>
             </div>
 
-            {/* Severidad */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Severidad *
@@ -167,7 +228,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               </select>
             </div>
 
-            {/* Asignado a */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Asignar a
@@ -179,10 +239,10 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Seleccione un analista</option>
-                {users.filter(user => 
-                  user.roles && (user.roles.includes('analista') || 
-                                 user.roles.includes('admin') || 
-                                 user.roles.includes('supervisor'))
+                {users.filter(user =>
+                  user.roles && (
+                    user.roles.includes('admin') ||
+                    user.roles.includes('supervisor'))
                 ).map((user) => (
                   <option key={user.id || ''} value={user.id || ''}>
                     {user.name} ({user.department})
@@ -191,7 +251,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               </select>
             </div>
 
-            {/* Sistemas Afectados */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sistemas Afectados
@@ -206,7 +265,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               />
             </div>
 
-            {/* Descripción */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Descripción Detallada *
@@ -222,7 +280,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               />
             </div>
 
-            {/* Impacto */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Impacto del Incidente
@@ -237,7 +294,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               />
             </div>
 
-            {/* Tags */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Etiquetas
@@ -253,7 +309,6 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
             <button
               type="button"
@@ -272,12 +327,12 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Creando...
+                  {isEditMode ? 'Actualizando...' : 'Creando...'}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
-                  Crear Incidente
+                  {isEditMode ? 'Guardar Cambios' : 'Crear Incidente'}
                 </>
               )}
             </button>

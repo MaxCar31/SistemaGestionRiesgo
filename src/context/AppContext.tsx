@@ -1,27 +1,19 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { User, Incident, AuditLog } from '../types';
-import { useAuth, useUsers, useIncidents, useAuditLogs, usePermissions } from './hooks';
-import { LogFilter } from './hooks/useAuditLogs';
+import { User, Incident } from '../types';
+import { useAuth, useUsers, useIncidents, usePermissions } from './hooks';
 
 interface AppContextType {
   currentUser: User | null;
   users: User[];
   incidents: Incident[];
-  auditLogs: AuditLog[];
   loading: boolean;
-  error: string | null;
-  filters: LogFilter;
   setCurrentUser: (user: User | null) => void;
   addIncident: (incident: Incident) => Promise<void>;
   updateIncident: (id: string, updates: Partial<Incident>) => Promise<void>;
-  addAuditLog: (log: AuditLog) => void;
   loadUsersFromSupabase: () => Promise<void>;
+  editIncident: (incidentId: string, updatedIncident: Incident) => Promise<boolean>;
+  deleteIncident: (incidentId: string) => Promise<boolean>;
   hasPermission: (permission: string) => boolean;
-  updateFilters: (filters: LogFilter) => void;
-  clearFilters: () => void;
-  refreshLogs: () => void;
-  loadLogs: (filters?: LogFilter) => void;
-  getLogById: (id: number) => Promise<{ data: AuditLog | null; error: string | null }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,19 +22,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Usar los hooks individuales
   const { currentUser, setCurrentUser, loading: authLoading } = useAuth();
   const { users, loadUsersFromSupabase } = useUsers();
-  const { incidents, addIncident, updateIncident } = useIncidents(currentUser);
-  const {
-    auditLogs,
-    loading: auditLoading,
-    error: auditError,
-    filters,
-    addAuditLog,
-    updateFilters,
-    clearFilters,
-    refreshLogs,
-    loadLogs,
-    getLogById
-  } = useAuditLogs();
+  const { incidents, addIncident, editIncident, deleteIncident, updateIncident } = useIncidents(currentUser);
   const { hasPermission: checkPermission } = usePermissions();
 
   // Función wrapper para comprobar permisos con el usuario currentUser
@@ -55,21 +35,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUser,
       users,
       incidents,
-      auditLogs,
-      loading: authLoading || auditLoading,
-      error: auditError,
-      filters,
+      loading: authLoading,
+      editIncident,
+      deleteIncident,
       setCurrentUser,
       addIncident,
       updateIncident,
-      addAuditLog,
       loadUsersFromSupabase,
       hasPermission,
-      updateFilters,
-      clearFilters,
-      refreshLogs,
-      loadLogs,
-      getLogById
     }}>
       {children}
     </AppContext.Provider>

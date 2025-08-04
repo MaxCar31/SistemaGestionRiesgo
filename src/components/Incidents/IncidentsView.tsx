@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Filter, Download, LayoutGrid, List, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Filter, Download, LayoutGrid, Plus } from 'lucide-react';
 import KanbanBoard from './KanbanBoard';
 import IncidentList from './IncidentList';
 import IncidentFilters from './IncidentFilters';
@@ -57,17 +57,6 @@ export default function IncidentsView() {
               <LayoutGrid className="w-4 h-4 mr-2" />
               Kanban
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <List className="w-4 h-4 mr-2" />
-              Lista
-            </button>
           </div>
           
           <button
@@ -76,11 +65,6 @@ export default function IncidentsView() {
           >
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Incidente
-          </button>
-          
-          <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Activity, Search, User, Calendar, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, Search, User, Calendar, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { useAuditLogs } from '../../context/hooks/useAuditLogs';
 import { formatDate } from '../../utils/helpers';
 
@@ -14,7 +14,13 @@ const getActionLabel = (action: string): string => {
     user_login: 'Inicio de Sesión',
     user_logout: 'Cierre de Sesión',
     incident_updated: 'Incidente Actualizado',
-    user_action: 'Acción de Usuario'
+    user_action: 'Acción de Usuario',
+    login: 'Inicio de Sesión',
+    auth_login: 'Inicio de Sesión',
+    sistema_operacion: 'Operación Sistema',
+    incidente_crear: 'Crear Incidente',
+    incidente_actualizar: 'Actualizar Incidente',
+    incidente_eliminar: 'Eliminar Incidente'
   };
   return labels[action] || action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
@@ -29,9 +35,37 @@ const getActionColor = (action: string): string => {
     user_login: 'bg-emerald-100 text-emerald-800',
     user_logout: 'bg-red-100 text-red-800',
     incident_updated: 'bg-orange-100 text-orange-800',
-    user_action: 'bg-indigo-100 text-indigo-800'
+    user_action: 'bg-indigo-100 text-indigo-800',
+    login: 'bg-emerald-100 text-emerald-800',
+    auth_login: 'bg-emerald-100 text-emerald-800',
+    sistema_operacion: 'bg-indigo-100 text-indigo-800',
+    incidente_crear: 'bg-blue-100 text-blue-800',
+    incidente_actualizar: 'bg-orange-100 text-orange-800',
+    incidente_eliminar: 'bg-red-100 text-red-800'
   };
   return colors[action] || 'bg-gray-100 text-gray-800';
+};
+
+// Función para obtener el color del rol
+const getRoleColor = (role: string): string => {
+  const colors: Record<string, string> = {
+    admin: 'bg-red-100 text-red-800',
+    manager: 'bg-purple-100 text-purple-800',
+    analyst: 'bg-blue-100 text-blue-800',
+    user: 'bg-gray-100 text-gray-800',
+    guest: 'bg-yellow-100 text-yellow-800'
+  };
+  return colors[role] || 'bg-gray-100 text-gray-800';
+};
+
+// Función para obtener la etiqueta del rol
+const getRoleLabel = (role: string): string => {
+  const labels: Record<string, string> = {
+    admin: 'Administrador',
+    analyst: 'Analista',
+    user: 'Usuario',
+  };
+  return labels[role] || role.charAt(0).toUpperCase() + role.slice(1);
 };
 
 export default function AuditView() {
@@ -55,17 +89,25 @@ export default function AuditView() {
     loadLogs();
   }, []);
 
-  // Filtrado local para búsqueda en tiempo real
+  // Filtrado local para búsqueda en tiempo real - SOLO por operación y usuario
   const filteredLogs = useMemo(() => {
     if (!searchTerm) return auditLogs;
 
     const searchLower = searchTerm.toLowerCase();
-    return auditLogs.filter(log =>
-      log.details.toLowerCase().includes(searchLower) ||
-      log.incidentId.toLowerCase().includes(searchLower) ||
-      log.userId.toLowerCase().includes(searchLower) ||
-      log.action.toLowerCase().includes(searchLower)
-    );
+    return auditLogs.filter(log => {
+      // Filtrar por operación (action o metadata.operacion)
+      const operacionMatch =
+        log.action.toLowerCase().includes(searchLower) ||
+        (log.metadata?.operacion && log.metadata.operacion.toLowerCase().includes(searchLower)) ||
+        getActionLabel(log.action).toLowerCase().includes(searchLower);
+
+      // Filtrar por usuario (userId o metadata.nombre_usuario)
+      const usuarioMatch =
+        log.userId.toLowerCase().includes(searchLower) ||
+        (log.metadata?.nombre_usuario && log.metadata.nombre_usuario.toLowerCase().includes(searchLower));
+
+      return operacionMatch || usuarioMatch;
+    });
   }, [auditLogs, searchTerm]);
 
   // Calcular paginación
@@ -133,7 +175,7 @@ export default function AuditView() {
         </div>
       )}
 
-      {/* Search Only */}
+      {/* Search Only - SOLO para operación y usuario */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
@@ -141,7 +183,7 @@ export default function AuditView() {
               <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar en los registros de auditoría..."
+                placeholder="Buscar por operación (acción) o usuario..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -188,7 +230,9 @@ export default function AuditView() {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
                           {getActionLabel(log.action)}
                         </span>
-                        <span className="text-sm text-gray-500">#{log.incidentId}</span>
+                        {log.incidentId && log.incidentId !== 'system' && log.incidentId !== 'ref' && (
+                          <span className="text-sm text-gray-500">#{log.incidentId}</span>
+                        )}
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="w-4 h-4 mr-1" />
@@ -196,11 +240,39 @@ export default function AuditView() {
                       </div>
                     </div>
 
-                    <p className="text-gray-900 mb-2">{log.details}</p>
+                    <p className="text-gray-900 mb-3">{log.details}</p>
 
-                    <div className="flex items-center text-sm text-gray-500">
-                      <User className="w-4 h-4 mr-1" />
-                      <span>por {log.userId}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          <span>por {log.metadata?.nombre_usuario || log.userId}</span>
+                        </div>
+
+                        {log.metadata?.rol_usuario && (
+                          <div className="flex items-center">
+                            <Shield className="w-4 h-4 mr-1" />
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(log.metadata.rol_usuario)}`}>
+                              {getRoleLabel(log.metadata.rol_usuario)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Información adicional del contenido si existe */}
+                      {log.metadata?.contenido && typeof log.metadata.contenido === 'object' && (
+                        <div className="text-xs text-gray-400">
+                          {log.metadata.contenido.email && (
+                            <span className="mr-2">Email: {log.metadata.contenido.email}</span>
+                          )}
+                          {log.metadata.contenido.exito !== undefined && (
+                            <span className={`px-1.5 py-0.5 rounded text-xs ${log.metadata.contenido.exito ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                              {log.metadata.contenido.exito ? 'Exitoso' : 'Fallido'}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

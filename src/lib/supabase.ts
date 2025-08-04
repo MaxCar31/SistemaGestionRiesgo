@@ -3,19 +3,13 @@ import { Database } from '../types/database';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  db: {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-expect-error
-    schema: 'incidents'
-  }
-});
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 
 
@@ -25,3 +19,13 @@ export const supabaseLogs = createClient<Database>(supabaseUrl, supabaseAnonKey,
     schema: 'public'
   }
 });
+
+// Cliente admin para operaciones que requieren privilegios de servicio
+export const supabaseAdmin = supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;

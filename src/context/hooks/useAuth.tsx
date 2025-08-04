@@ -18,7 +18,8 @@ export function useAuth() {
         try {
           // Obtener información completa del usuario desde usuarios_con_roles
           const { data, error } = await supabase
-            .from('users.usuarios_con_roles')  // Use dot notation for schema instead of .schema() method
+            .schema('users')
+            .from('usuarios_con_roles') // Use dot notation for schema instead of .schema() method
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -91,7 +92,8 @@ export function useAuth() {
           try {
             // Obtener información completa del usuario desde usuarios_con_roles
             const { data, error } = await supabase
-              .from('users.usuarios_con_roles')  // Use dot notation for schema instead of .schema() method
+              .schema('users')
+              .from('usuarios_con_roles')  // Use dot notation for schema instead of .schema() method
               .select('*')
               .eq('id', session.user.id)
               .single();

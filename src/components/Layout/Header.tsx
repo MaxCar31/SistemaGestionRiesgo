@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Shield, Bell, User, Settings, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
