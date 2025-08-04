@@ -41,7 +41,7 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
 
   async function fetchComments() {
     const { data, error } = await supabase
-      .from<IncidentComment>('incident_comments')
+      .from<IncidentComment>('incidents.incident_comments')
       .select('*')
       .eq('incident_id', incident.id)
       .order('created_at', { ascending: true });
@@ -59,6 +59,7 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
 
     setPosting(true);
     const { error } = await supabase
+      .schema('incidents')
       .from('incident_comments')
       .insert([{ incident_id: incident.id, author_id: currentUser.id, comentario: newComment.trim() }]);
 

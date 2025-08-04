@@ -23,3 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Archivos de base de datos locales
+database/
+*.sql
+
+# Archivos de test y setup locales
+test-*.js
+setup-demo-user.js
+export-database.bat
+verificar-usuario.js

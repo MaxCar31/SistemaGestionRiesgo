@@ -13,10 +13,11 @@ export function useIncidents(currentUser: User | null) {
   // Función para cargar incidentes desde Supabase
   const loadIncidentsFromSupabase = async () => {
     try {
-      const { data, error } = await supabase
-        .from('incidents')
-        .select('*')
-        .order('createdat', { ascending: false });
+    const { data, error } = await supabase
+      .schema('incidents')
+      .from('incidents')
+      .select('*')
+      .order('createdat', { ascending: false });
 
       if (error) {
         console.error('Error al cargar incidentes desde Supabase:', error);
@@ -92,6 +93,7 @@ export function useIncidents(currentUser: User | null) {
 
       // Insertar en Supabase
       const { data, error } = await supabase
+        .schema('incidents')
         .from('incidents')
         .insert([incidentData])
         .select();
@@ -197,6 +199,7 @@ export function useIncidents(currentUser: User | null) {
 
       // Actualizar en Supabase
       const { error } = await supabase
+        .schema('incidents')
         .from('incidents')
         .update(incidentData)
         .eq('id', incidentId);
@@ -235,6 +238,7 @@ export function useIncidents(currentUser: User | null) {
     try {
       // Eliminar de Supabase
       const { error } = await supabase
+        .schema('incidents')
         .from('incidents')
         .delete()
         .eq('id', incidentId);
