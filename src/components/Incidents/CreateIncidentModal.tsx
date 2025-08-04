@@ -7,7 +7,7 @@ import { generateIncidentId } from '../../utils/helpers';
 interface IncidentModalProps {
   onClose: () => void;
   onSuccess?: (action: 'create' | 'update', incident: Incident) => void;
-  incidentToEdit?: Incident; // Optional incident for edit mode
+  incidentToEdit?: Incident; 
 }
 
 export default function IncidentFormModal({ onClose, onSuccess, incidentToEdit }: IncidentModalProps) {
