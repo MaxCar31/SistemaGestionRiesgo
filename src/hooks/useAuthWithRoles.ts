@@ -68,6 +68,13 @@ export function useAuthWithRoles() {
           is_active: userData.is_active
         };
 
+        // Si el usuario está inactivo, cerrar sesión automáticamente
+        if (userData.is_active === false) {
+          alert('Tu cuenta ha sido desactivada. Contacta al administrador.');
+          await supabase.auth.signOut();
+          return null;
+        }
+
         console.log('✅ Usuario final mapeado:', finalUser);
         return finalUser;
       } catch (error) {
