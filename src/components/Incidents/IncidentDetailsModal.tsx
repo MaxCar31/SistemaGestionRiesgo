@@ -109,7 +109,7 @@ export default function IncidentDetailsModal({ incident, onClose, onIncidentUpda
         }
       } catch (error) {
         console.error('Error al eliminar el incidente:', error);
-        alert('Error al eliminar el incidente. Por favor, inténtalo de nuevo.');
+    
       } finally {
         setIsDeleting(false);
       }

@@ -267,7 +267,7 @@
         return true;
       } catch (error) {
         console.error('Error al eliminar incidente:', error);
-        alert('Error al eliminar el incidente. Por favor, inténtalo de nuevo.');
+      
         return false;
       }
     };
