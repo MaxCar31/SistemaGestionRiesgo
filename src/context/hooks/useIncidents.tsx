@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Incident, IncidentType, Severity, Status, User } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { Tables } from '../../types/database';
 import { useAuditLogs } from './useAuditLogs';
 
 // Tipo para los datos de Supabase, usando el tipo generado de la base de datos
-type SupabaseIncident = Tables<{ schema: "incidents" }, "incidents">;
+type SupabaseIncident = Incident;
 
 export function useIncidents(currentUser: User | null) {
   const [incidents, setIncidents] = useState<Incident[]>([]);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { AppProvider, useApp } from './context/AppContext'
+import { AppProvider } from './context/AppContext'
 import { useAuth } from './hooks/useAuth'
 
 import LoginForm from './components/Auth/LoginForm'
@@ -23,7 +23,6 @@ const viewMap: Record<string, string> = {
 }
 
 function AppContent() {
-  const { loading } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const [activeView, setActiveView] = useState('dashboard')
@@ -45,17 +44,6 @@ function AppContent() {
       Object.keys(viewMap).find((key) => viewMap[key] === view) ||
       'dashboard'
     navigate(`/${url}`)
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    )
   }
 
   const renderView = () => {
@@ -80,20 +68,6 @@ function AppContent() {
         return (
           <ProtectedRoute requiredRole="admin">
             <AuditView />
-          </ProtectedRoute>
-        )
-
-      case 'settings':
-        return (
-          <ProtectedRoute requiredRole="admin">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Configuración del Sistema
-              </h2>
-              <p className="text-gray-600">
-                Esta funcionalidad estará disponible próximamente
-              </p>
-            </div>
           </ProtectedRoute>
         )
 
@@ -149,3 +123,5 @@ function App() {
 }
 
 export default App
+
+

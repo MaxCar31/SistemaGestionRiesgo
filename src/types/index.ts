@@ -50,6 +50,14 @@
     }
 
 
+    export type IncidentComment = {
+    id: string
+    incident_id: string
+    author_id: string
+    comentario: string
+    created_at: string
+  }
+
   // El resto de tus interfaces sin cambios:
 
   export interface Incident {

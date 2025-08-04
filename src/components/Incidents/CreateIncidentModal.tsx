@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Incident, IncidentType, Severity } from '../../types';
 import { generateIncidentId } from '../../utils/helpers';
@@ -10,7 +10,6 @@ interface CreateIncidentModalProps {
 
 export default function CreateIncidentModal({ onClose }: CreateIncidentModalProps) {
   const { users, addIncident, currentUser } = useApp();
-  console.log('Current User:', users);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,33 +20,52 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
     impact: '',
     tags: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setIsSubmitting(true);
+    setError(null);
     
-    const newIncident: Incident = {
-      id: generateIncidentId(),
-      title: formData.title,
-      description: formData.description,
-      type: formData.type,
-      severity: formData.severity,
-      status: 'open',
-      assignedTo: formData.assignedTo,
-      reportedBy: currentUser?.id || '1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-      affectedSystems: formData.affectedSystems.split(',').map(system => system.trim()).filter(Boolean),
-      impact: formData.impact
-    };
-
     try {
+      console.log("Creando incidente:", formData);
+      
+      const newIncident: Incident = {
+        id: generateIncidentId(),
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        severity: formData.severity,
+        status: 'open',
+        assignedTo: formData.assignedTo,
+        reportedBy: currentUser?.id || '1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        affectedSystems: formData.affectedSystems.split(',').map(system => system.trim()).filter(Boolean),
+        impact: formData.impact
+      };
+      
+      console.log("Objeto de incidente creado:", newIncident);
+      
+      if (typeof addIncident !== 'function') {
+        throw new Error('La función addIncident no está disponible');
+      }
+      
       await addIncident(newIncident);
-      onClose();
+      console.log("Incidente agregado exitosamente");
+      
+      // Forzar un pequeño retraso antes de cerrar
+      setTimeout(() => {
+        onClose();
+      }, 100);
+      
     } catch (error) {
       console.error('Error al crear el incidente:', error);
-      // El error ya se maneja en addIncident, pero podríamos agregar más UI feedback aquí
+      setError(error instanceof Error ? error.message : 'Ocurrió un error al crear el incidente');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -81,6 +99,13 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-start">
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+              <p>{error}</p>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Título */}
             <div className="lg:col-span-2">
@@ -154,8 +179,12 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Seleccione un analista</option>
-                {users.filter(user => user.role !== 'viewer').map((user) => (
-                  <option key={user.id} value={user.id}>
+                {users.filter(user => 
+                  user.roles && (user.roles.includes('analista') || 
+                                 user.roles.includes('admin') || 
+                                 user.roles.includes('supervisor'))
+                ).map((user) => (
+                  <option key={user.id || ''} value={user.id || ''}>
                     {user.name} ({user.department})
                   </option>
                 ))}
@@ -230,16 +259,27 @@ export default function CreateIncidentModal({ onClose }: CreateIncidentModalProp
               type="button"
               onClick={onClose}
               className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
             >
               <X className="w-4 h-4 mr-2" />
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
             >
-              <Save className="w-4 h-4 mr-2" />
-              Crear Incidente
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Crear Incidente
+                </>
+              )}
             </button>
           </div>
         </form>
