@@ -9,6 +9,7 @@ import Sidebar from './components/Layout/Sidebar';
 import DashboardView from './components/Dashboard/DashboardView';
 import IncidentsView from './components/Incidents/IncidentsView';
 import UsersView from './components/Users/UsersView';
+import UserAdministrationView from './components/Users/UserAdministrationView';
 import AuditView from './components/Audit/AuditView';
 import RoleManagementView from './components/Users/RoleManagementView';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -39,6 +40,12 @@ function AppContent() {
         return (
           <ProtectedRoute requiredPermission="canManageUsers">
             <UsersView />
+          </ProtectedRoute>
+        );
+      case 'user-admin':
+        return (
+          <ProtectedRoute requiredRole="admin">
+            <UserAdministrationView />
           </ProtectedRoute>
         );
       case 'roles':

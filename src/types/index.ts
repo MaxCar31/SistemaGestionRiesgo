@@ -16,7 +16,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'analyst' | 'viewer';
+  role: 'admin' | 'supervisor' | 'analista';
   department: string;
   roles?: Role[];
   is_active?: boolean;

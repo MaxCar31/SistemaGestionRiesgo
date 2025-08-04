@@ -8,16 +8,14 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
-  const [isLogin, setIsLogin] = useState(true);
+  // Solo login, no registro
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentView, setCurrentView] = useState<'login' | 'recovery'>('login');
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    name: '',
-    department: ''
+    password: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,32 +24,12 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     setError('');
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (error) throw error;
-        onSuccess();
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              name: formData.name,
-              department: formData.department,
-              role: 'analyst' // Default role
-            }
-          }
-        });
-
-        if (error) throw error;
-        
-        // Para testing: Siempre ir al setup de preguntas después del registro
-        onSuccess();
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      if (error) throw error;
+      onSuccess();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Ha ocurrido un error';
       setError(errorMessage);
@@ -98,15 +76,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-            </h2>
-            <p className="text-gray-600">
-              {isLogin 
-                ? 'Accede a tu cuenta para gestionar incidentes de seguridad'
-                : 'Crea una nueva cuenta para acceder al sistema'
-              }
-            </p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-600">Accede a tu cuenta para gestionar incidentes de seguridad</p>
           </div>
 
           {error && (
@@ -117,39 +88,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre Completo
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Tu nombre completo"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Departamento
-                  </label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Ej: Seguridad IT, Operaciones"
-                  />
-                </div>
-              </>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -200,45 +138,24 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
+              {loading ? 'Procesando...' : 'Iniciar Sesión'}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setFormData({ email: '', password: '', name: '', department: '' });
-              }}
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+
+
+          <div className="mt-4 text-center">
+            <button 
+              type="button"
+              onClick={handleShowPasswordRecovery}
+              className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
             >
-              {isLogin 
-                ? '¿No tienes cuenta? Crear una nueva'
-                : '¿Ya tienes cuenta? Iniciar sesión'
-              }
+              ¿Olvidaste tu contraseña?
             </button>
           </div>
-
-          {isLogin && (
-            <div className="mt-4 text-center">
-              <button 
-                type="button"
-                onClick={handleShowPasswordRecovery}
-                className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-white text-sm font-medium mb-2">Credenciales de Demo:</p>
-          <p className="text-blue-200 text-xs">Email: demo@empresa.com</p>
-          <p className="text-blue-200 text-xs">Contraseña: demo123</p>
-        </div>
+
       </div>
     </div>
   );
