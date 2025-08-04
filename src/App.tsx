@@ -186,7 +186,7 @@ function App() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 mb-4">Cargando aplicación...</p>
+          <p className="text-gray-600 mb-4">Cargando...</p>
         </div>
       </div>
     );
@@ -202,21 +202,9 @@ function App() {
   if (needsSecuritySetup === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 mb-4">Verificando configuración...</p>
-          
-          {user && (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500">Usuario: {user.email}</p>
-              <button
-                onClick={handleForceLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
-          )}
+          <p className="text-gray-600 mb-4">Cargando...</p>
         </div>
       </div>
     );

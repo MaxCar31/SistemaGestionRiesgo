@@ -1,12 +1,8 @@
 import { 
   LayoutDashboard, 
   AlertTriangle, 
-  Users, 
-  Settings,
   Activity,
-  Shield,
   LucideIcon,
-  Stethoscope,
   UserPlus
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -28,10 +24,7 @@ const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
   { id: 'user-admin', label: 'Usuarios', icon: UserPlus, adminOnly: true },
-  { id: 'roles', label: 'Gestión de Roles', icon: Shield, requiredPermission: 'canManageRoles' },
   { id: 'audit', label: 'Auditoría', icon: Activity, requiredPermission: 'canViewAuditLogs' },
-  { id: 'settings', label: 'Configuración', icon: Settings, adminOnly: true },
-  { id: 'diagnostic', label: 'Diagnóstico', icon: Stethoscope }
 ];
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
