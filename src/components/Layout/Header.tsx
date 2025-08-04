@@ -1,13 +1,16 @@
-import React from 'react';
 import { Shield, Bell, User, Settings, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const { currentUser } = useApp();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    navigate('/', { replace: true });
+
   };
 
   return (
