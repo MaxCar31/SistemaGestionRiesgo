@@ -31,6 +31,7 @@ const transformDatabaseLogToAuditLog = (log: DatabaseLog): AuditLog => {
       tipo_log: log.tipo_log,
       operacion: log.operacion,
       entidad: log.entidad,
+      nombre_usuario: log.nombre_usuario, // Agregar nombre_usuario a metadata
       rol_usuario: log.rol_usuario,
       contenido: log.contenido
     }
@@ -53,7 +54,7 @@ export function useAuditLogs() {
     try {
       // Llamar a la función de base de datos para obtener logs descifrados
       const { data: logs, error: logsError } = await supabaseLogs
-        .rpc('get_log_sistema');
+        .rpc('get_log_sistema2');
 
       if (logsError) {
         console.error('Error al cargar logs:', logsError);

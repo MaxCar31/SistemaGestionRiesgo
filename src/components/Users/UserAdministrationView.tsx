@@ -145,7 +145,7 @@ export default function UserAdministrationView() {
         .rpc('get_available_roles');
 
       console.log('📋 Respuesta de get_available_roles - Data:', data, 'Error:', error);
-      
+
       if (error) throw error;
       setRoles(data || []);
       console.log('✅ Roles cargados:', data);
@@ -188,7 +188,7 @@ export default function UserAdministrationView() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsCreating(true);
@@ -198,9 +198,9 @@ export default function UserAdministrationView() {
     const timeoutId = setTimeout(() => {
       console.log('⏰ Timeout - terminando proceso de creación');
       setIsCreating(false);
-      setCreateMessage({ 
-        type: 'error', 
-        text: 'El proceso tomó demasiado tiempo. Verifica si el usuario se creó correctamente.' 
+      setCreateMessage({
+        type: 'error',
+        text: 'El proceso tomó demasiado tiempo. Verifica si el usuario se creó correctamente.'
       });
     }, 30000); // 30 segundos timeout
 
@@ -284,11 +284,11 @@ export default function UserAdministrationView() {
       // Limpiar timeout ya que todo salió bien
       clearTimeout(timeoutId);
 
-      setCreateMessage({ 
-        type: 'success', 
-        text: `Usuario ${formData.name} creado exitosamente. Ya puede hacer login.` 
+      setCreateMessage({
+        type: 'success',
+        text: `Usuario ${formData.name} creado exitosamente. Ya puede hacer login.`
       });
-      
+
       // Limpiar formulario y cerrar modal
       setFormData({
         email: '',
@@ -297,17 +297,17 @@ export default function UserAdministrationView() {
         department: '',
         role: ''
       });
-      
+
       setShowCreateForm(false);
-      
+
       // Recargar la lista de usuarios
       await loadUsersFromSupabase();
 
     } catch (error) {
       console.error('❌ Error creando usuario:', error);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      
+
       alert(`❌ Error al crear usuario
 
 ⚠️ ${errorMessage}
@@ -320,9 +320,9 @@ Posibles causas:
 • Error de conexión
 
 Revisa la configuración e intenta nuevamente.`);
-      
-      setCreateMessage({ 
-        type: 'error', 
+
+      setCreateMessage({
+        type: 'error',
         text: errorMessage
       });
     } finally {
@@ -389,7 +389,7 @@ Revisa la configuración e intenta nuevamente.`);
               <p className="text-gray-600">Crear y gestionar cuentas de usuario del sistema</p>
             </div>
           </div>
-          
+
           <button
             onClick={() => setShowCreateForm(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
@@ -402,11 +402,10 @@ Revisa la configuración e intenta nuevamente.`);
 
       {/* Mensaje de resultado */}
       {createMessage && (
-        <div className={`p-4 rounded-lg ${
-          createMessage.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-700' 
+        <div className={`p-4 rounded-lg ${createMessage.type === 'success'
+            ? 'bg-green-50 border border-green-200 text-green-700'
             : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
+          }`}>
           {createMessage.text}
         </div>
       )}
@@ -476,17 +475,17 @@ Revisa la configuración e intenta nuevamente.`);
 
               {/* Departamento */}
               <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Departamento *
-              </label>
-              <input
-                type="text"
-                value={formData.department}
-                onChange={(e) => handleInputChange('department', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="IT, Seguridad, etc."
-                required
-              />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Departamento *
+                </label>
+                <input
+                  type="text"
+                  value={formData.department}
+                  onChange={(e) => handleInputChange('department', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="IT, Seguridad, etc."
+                  required
+                />
               </div>
 
               {/* Rol */}
@@ -553,13 +552,13 @@ Revisa la configuración e intenta nuevamente.`);
             Actualizar
           </button>
         </div>
-        
+
         {usersError && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4">
             {usersError}
           </div>
         )}
-        
+
         {isLoadingUsers ? (
           <div className="bg-gray-50 rounded-lg p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -579,8 +578,8 @@ Revisa la configuración e intenta nuevamente.`);
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Departamento</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Rol</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Estado</th>
-                 <th className="text-left py-3 px-4 font-medium text-gray-900">Creado</th>
-                 <th className="text-left py-3 px-4 font-medium text-gray-900">Acciones</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Creado</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -602,11 +601,10 @@ Revisa la configuración e intenta nuevamente.`);
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        user.is_active 
-                          ? 'bg-green-100 text-green-800' 
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.is_active
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                        }`}>
                         {user.is_active ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
@@ -624,85 +622,85 @@ Revisa la configuración e intenta nuevamente.`);
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3zm0 0v3a2 2 0 002 2h3" /></svg>
                         </button>
-      {/* Modal de edición de usuario */}
-      {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
+                        {/* Modal de edición de usuario */}
+                        {editUser && (
+                          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
 
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
-            <button onClick={closeEditModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-xl font-semibold mb-6">Editar Usuario</h2>
-            <form onSubmit={handleSaveEdit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={e => handleEditInputChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
-                <input
-                  type="text"
-                  value={editForm.department}
-                  onChange={e => handleEditInputChange('department', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                <select
-                  value={editForm.role}
-                  onChange={e => handleEditInputChange('role', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar rol...</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>{role.name} - {role.description}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email (solo Auth)</label>
-                <input
-                  type="email"
-                  value={editForm.email}
-                  onChange={e => handleEditInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña (dejar vacío para no cambiar)</label>
-                <input
-                  type="password"
-                  value={editForm.password}
-                  onChange={e => handleEditInputChange('password', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  minLength={6}
-                  placeholder="Nueva contraseña"
-                />
-              </div>
-              {editMessage && <div className="text-sm text-red-600">{editMessage}</div>}
-              <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={closeEditModal} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancelar</button>
-                <button type="submit" disabled={isEditing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{isEditing ? 'Guardando...' : 'Guardar Cambios'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
+                              <button onClick={closeEditModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                                <X className="w-5 h-5" />
+                              </button>
+                              <h2 className="text-xl font-semibold mb-6">Editar Usuario</h2>
+                              <form onSubmit={handleSaveEdit} className="space-y-6">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+                                  <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={e => handleEditInputChange('name', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                                  <input
+                                    type="text"
+                                    value={editForm.department}
+                                    onChange={e => handleEditInputChange('department', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                                  <select
+                                    value={editForm.role}
+                                    onChange={e => handleEditInputChange('role', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                  >
+                                    <option value="">Seleccionar rol...</option>
+                                    {roles.map((role) => (
+                                      <option key={role.id} value={role.id}>{role.name} - {role.description}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Email (solo Auth)</label>
+                                  <input
+                                    type="email"
+                                    value={editForm.email}
+                                    onChange={e => handleEditInputChange('email', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña (dejar vacío para no cambiar)</label>
+                                  <input
+                                    type="password"
+                                    value={editForm.password}
+                                    onChange={e => handleEditInputChange('password', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    minLength={6}
+                                    placeholder="Nueva contraseña"
+                                  />
+                                </div>
+                                {editMessage && <div className="text-sm text-red-600">{editMessage}</div>}
+                                <div className="flex justify-end space-x-3 pt-4">
+                                  <button type="button" onClick={closeEditModal} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancelar</button>
+                                  <button type="submit" disabled={isEditing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{isEditing ? 'Guardando...' : 'Guardar Cambios'}</button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        )}
                         {/* Botón Activar/Desactivar */}
                         <button
                           title={user.is_active ? "Desactivar usuario" : "Activar usuario"}
                           className={`p-2 rounded-lg ${user.is_active ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}`}
-                        onClick={() => handleToggleActive(user)}
-                        
+                          onClick={() => handleToggleActive(user)}
+
                         >
                           {user.is_active ? (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-1.414 1.414A9 9 0 105.636 18.364l1.414-1.414" /></svg>
@@ -714,7 +712,7 @@ Revisa la configuración e intenta nuevamente.`);
                         <button
                           title="Eliminar usuario"
                           className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700"
-                        onClick={() => handleDeleteUser(user)}
+                          onClick={() => handleDeleteUser(user)}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
