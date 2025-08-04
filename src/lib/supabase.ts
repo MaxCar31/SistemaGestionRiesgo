@@ -10,7 +10,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+
+  db: {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-expect-error
+    schema: 'incidents'
+  }
 });
+
+
+
+export const supabaseLogs = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  db: {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    schema: 'public'
+  }
+
 // Cliente admin para operaciones que requieren privilegios de servicio
 export const supabaseAdmin = supabaseServiceKey 
   ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
