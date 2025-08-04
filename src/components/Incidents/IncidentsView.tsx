@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Filter, Download, LayoutGrid, List, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Filter, Download, LayoutGrid, Plus } from 'lucide-react';
 import KanbanBoard from './KanbanBoard';
 import IncidentList from './IncidentList';
 import IncidentFilters from './IncidentFilters';
