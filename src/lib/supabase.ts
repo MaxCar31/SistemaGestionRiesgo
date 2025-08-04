@@ -9,14 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-
-  db: {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //@ts-expect-error
-    schema: 'incidents'
-  }
-});
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 
 
@@ -25,10 +18,11 @@ export const supabaseLogs = createClient<Database>(supabaseUrl, supabaseAnonKey,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     schema: 'public'
   }
+});
 
 // Cliente admin para operaciones que requieren privilegios de servicio
 export const supabaseAdmin = supabaseServiceKey 
-  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
