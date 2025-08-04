@@ -218,12 +218,12 @@
         
         // Add audit log
         addAuditLog({
-          id: `LOG-${Date.now()}`,
-          incidentId: incidentId,
-          userId: currentUser?.id || '1',
-          action: 'incident_updated',
-          details: `Incidente actualizado: ${updatedIncident.title}`,
-          timestamp: new Date()
+        id: `LOG-${Date.now()}`,
+        incidentId: incidentId,
+        userId: currentUser?.id || '1',
+        action: 'incident_updated',
+        details: `Incidente actualizado: ${updatedIncident?.title || 'Sin título'}`,
+        timestamp: new Date()
         });
 
         console.log('Incidente actualizado exitosamente');
