@@ -13,6 +13,15 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   db: {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-expect-error
-     schema: 'incidents'
+    schema: 'incidents'
+  }
+});
+
+
+
+export const supabaseLogs = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  db: {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    schema: 'public'
   }
 });
